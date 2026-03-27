@@ -1,0 +1,131 @@
+.form-card {
+  border: 1px solid rgba(171, 122, 248, 0.22);
+  border-radius: 1.5rem;
+  background: linear-gradient(180deg, rgba(43, 24, 70, 0.9), rgba(28, 16, 47, 0.92));
+  padding: 1.35rem 1.15rem;
+  box-shadow: 0 15px 30px rgba(6, 4, 13, 0.35), 0 0 30px rgba(101, 48, 173, 0.15);
+}
+
+.title-row {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+}
+
+.title-bar {
+  width: 7px;
+  height: 34px;
+  border-radius: 999px;
+  background: linear-gradient(180deg, #d48dff, #8c51ff);
+}
+
+.form-card h2 {
+  margin: 0;
+  color: #f7ecff;
+  font-size: 2.15rem;
+  line-height: 1;
+  font-weight: 800;
+}
+
+.form-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 0.8rem;
+  margin-top: 1rem;
+}
+
+label span {
+  display: block;
+  color: #b6a2d8;
+  text-transform: uppercase;
+  letter-spacing: 0.11em;
+  font-size: 0.66rem;
+  margin-bottom: 0.35rem;
+}
+
+.grid-two {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.65rem;
+}
+
+.control {
+  width: 100%;
+  border: 1px solid rgba(177, 132, 247, 0.26);
+  border-radius: 0.9rem;
+  background: rgba(40, 26, 63, 0.95);
+  color: #f5ebff;
+  padding: 0.78rem 0.92rem;
+  font-size: 0.95rem;
+  outline: none;
+}
+
+.control:focus {
+  border-color: rgba(206, 159, 255, 0.8);
+}
+
+.control-textarea {
+  min-height: 122px;
+  resize: vertical;
+}
+
+.control-time {
+  max-width: 170px;
+}
+
+.quick-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.quick-chip {
+  border-radius: 999px;
+  border: 1px solid rgba(164, 120, 243, 0.38);
+  background: rgba(44, 28, 71, 0.95);
+  color: #ddc8ff;
+  padding: 0.42rem 0.78rem;
+  font-size: 0.74rem;
+  cursor: pointer;
+}
+
+.quick-chip:hover {
+  background: rgba(116, 74, 186, 0.45);
+}
+
+.action-row {
+  display: flex;
+  gap: 0.45rem;
+}
+
+.btn {
+  border-radius: 0.95rem;
+  border: 1px solid transparent;
+  padding: 0.9rem 1rem;
+  font-size: 1.08rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+
+.btn-primary {
+  flex: 1;
+  color: #fef7ff;
+  font-weight: 700;
+  background: linear-gradient(90deg, #c782ff, #9454ff);
+  box-shadow: 0 8px 20px rgba(128, 79, 214, 0.35);
+}
+
+.btn-secondary {
+  color: #e8d8ff;
+  border-color: rgba(186, 132, 255, 0.25);
+  background: rgba(48, 30, 78, 0.86);
+  font-size: 0.8rem;
+  letter-spacing: 0.08em;
+}
+
+@media (max-width: 500px) {
+  .grid-two {
+    grid-template-columns: 1fr;
+  }
+}

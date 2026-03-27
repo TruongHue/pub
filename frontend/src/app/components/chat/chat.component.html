@@ -1,0 +1,31 @@
+<section class="chat-card">
+  <div class="chat-head">
+    <h3>💬 Live Chat</h3>
+    <div class="online-note">1,248 Seekers currently online</div>
+  </div>
+  <div #chatContainer class="chat-scroll">
+    @for (msg of messages; track $index) {
+      <article
+        class="message"
+        [class.message-ai]="msg.type === 'ai'"
+        [class.message-live]="msg.type === 'live'"
+        [class.message-user]="msg.type === 'user'"
+      >
+        <div class="author-row">
+          <div class="avatar-mini"></div>
+          <div class="author">{{ msg.author }}</div>
+        </div>
+        <div class="body">{{ msg.text }}</div>
+      </article>
+    }
+  </div>
+  <div class="chat-input-row">
+    <input
+      type="text"
+      placeholder="Send a cosmic message..."
+      [(ngModel)]="draft"
+      (keydown.enter)="submitDraft()"
+    />
+    <button type="button" aria-label="Send message" (click)="submitDraft()">➤</button>
+  </div>
+</section>

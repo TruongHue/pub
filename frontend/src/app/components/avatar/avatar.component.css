@@ -1,0 +1,153 @@
+.avatar-card {
+  position: relative;
+  height: auto;
+  min-height: 560px;
+  overflow: hidden;
+  border-radius: 1.12rem;
+  border: 1px solid rgba(172, 123, 247, 0.28);
+  background: rgba(17, 10, 32, 0.75);
+  padding: 0.75rem;
+  box-shadow: 0 0 22px rgba(109, 62, 195, 0.25);
+}
+
+.live-pill {
+  position: absolute;
+  left: 1rem;
+  top: 1rem;
+  z-index: 2;
+  border-radius: 999px;
+  background: rgba(10, 8, 19, 0.72);
+  color: #f1d9ff;
+  font-size: 0.68rem;
+  letter-spacing: 0.08em;
+  padding: 0.3rem 0.65rem;
+}
+
+.loading-wrap {
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.spinner {
+  height: 64px;
+  width: 64px;
+  border-radius: 999px;
+  border: 4px solid rgba(217, 70, 239, 0.3);
+  border-top-color: #f0abfc;
+  animation: spin 1s linear infinite;
+}
+
+.avatar-stage {
+  position: relative;
+  min-height: 540px;
+  height: auto;
+  border-radius: 0.8rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  text-align: center;
+  background: radial-gradient(circle at 45% 15%, rgba(57, 36, 88, 0.78), rgba(14, 9, 28, 0.98));
+  padding: 4rem 0.75rem 1.1rem;
+}
+
+.stars-overlay {
+  position: absolute;
+  inset: 0;
+  opacity: 0.2;
+  background-image: radial-gradient(circle at 20% 20%, #fff 1px, transparent 1px);
+  background-size: 16px 16px;
+}
+
+.portrait-frame {
+  position: relative;
+  width: 100%;
+  max-width: 355px;
+  height: 435px;
+  border-radius: 1.2rem;
+  border: 1px solid rgba(146, 109, 220, 0.36);
+  overflow: hidden;
+  background: linear-gradient(180deg, rgba(30, 22, 56, 0.6), rgba(10, 8, 20, 0.8));
+}
+
+.portrait-art {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  border-radius: 1rem;
+  background:
+    radial-gradient(circle at 50% 35%, rgba(91, 204, 212, 0.45), rgba(16, 36, 61, 0.08) 45%),
+    linear-gradient(180deg, rgba(72, 110, 157, 0.38), rgba(18, 24, 43, 0.88));
+  transition: transform 0.2s ease;
+}
+
+.face-speaking {
+  animation: pulse 1s ease-in-out infinite;
+}
+
+.eye {
+  position: absolute;
+  top: 206px;
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+  background: rgba(235, 255, 143, 0.96);
+  box-shadow: 0 0 14px rgba(236, 255, 147, 0.8);
+}
+
+.eye-left {
+  left: calc(50% - 54px);
+}
+
+.eye-right {
+  right: calc(50% - 54px);
+}
+
+.mouth {
+  position: absolute;
+  left: 50%;
+  top: 282px;
+  transform: translateX(-50%);
+  width: 20px;
+  height: 4px;
+  border-radius: 999px;
+  background: #c1f8ff;
+  transition: all 0.18s ease;
+}
+
+.mouth-speaking {
+  width: 38px;
+  height: 11px;
+}
+
+.speech-text {
+  position: relative;
+  margin: 0.95rem 0 0;
+  padding: 0 1.4rem;
+  color: #d5c6e7;
+  font-size: 0.88rem;
+  line-height: 1.5;
+  max-width: 520px;
+  width: 100%;
+  text-align: left;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes pulse {
+  0%,
+  100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.05);
+  }
+}

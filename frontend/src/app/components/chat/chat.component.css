@@ -1,0 +1,115 @@
+.chat-card {
+  display: flex;
+  flex-direction: column;
+  min-height: 74vh;
+  max-height: 84vh;
+  border-radius: 1.15rem;
+  border: 1px solid rgba(188, 133, 255, 0.2);
+  background: linear-gradient(180deg, rgba(26, 16, 48, 0.82), rgba(16, 10, 32, 0.9));
+  padding: 0.85rem 0.8rem 0.8rem;
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.26), inset 0 1px 0 rgba(255, 255, 255, 0.03);
+}
+
+.chat-head {
+  padding: 0.2rem 0.2rem 0.55rem;
+  border-bottom: 1px solid rgba(167, 122, 241, 0.2);
+  margin-bottom: 0.6rem;
+}
+
+.chat-card h3 {
+  margin: 0;
+  color: #f2e8ff;
+  font-size: 1.35rem;
+  font-weight: 700;
+}
+
+.online-note {
+  color: #ac9ac9;
+  margin: 0.28rem 0 0;
+  font-size: 0.74rem;
+}
+
+.chat-scroll {
+  flex: 1;
+  overflow-y: auto;
+  padding-right: 0.25rem;
+  margin-bottom: 0.7rem;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(180, 136, 255, 0.55) transparent;
+}
+
+.message {
+  border-radius: 0.95rem;
+  padding: 0.62rem 0.72rem;
+  font-size: 0.96rem;
+  margin-bottom: 0.5rem;
+  backdrop-filter: blur(3px);
+}
+
+.message-ai {
+  background: rgba(213, 121, 255, 0.18);
+}
+
+.message-live {
+  background: rgba(58, 36, 99, 0.65);
+  border: 1px solid rgba(146, 95, 222, 0.27);
+}
+
+.message-user {
+  background: rgba(108, 69, 165, 0.35);
+}
+
+.author {
+  color: #e0c6ff;
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.author-row {
+  display: flex;
+  align-items: center;
+  gap: 0.42rem;
+  margin-bottom: 0.22rem;
+}
+
+.avatar-mini {
+  width: 18px;
+  height: 18px;
+  border-radius: 999px;
+  background: radial-gradient(circle at 35% 30%, #66d4d9, #2d4864 70%);
+  border: 1px solid rgba(255, 255, 255, 0.24);
+}
+
+.body {
+  color: #ede4ff;
+  line-height: 1.35;
+}
+
+.chat-input-row {
+  display: flex;
+  gap: 0.45rem;
+  border-top: 1px solid rgba(167, 122, 241, 0.2);
+  padding-top: 0.65rem;
+}
+
+.chat-input-row input {
+  flex: 1;
+  border: 1px solid rgba(164, 119, 239, 0.3);
+  border-radius: 999px;
+  background: rgba(21, 14, 40, 0.94);
+  color: #efe8ff;
+  padding: 0.58rem 0.9rem;
+}
+
+.chat-input-row button {
+  width: 42px;
+  border-radius: 999px;
+  border: 1px solid rgba(168, 118, 247, 0.45);
+  background: linear-gradient(90deg, #7942df, #9d5dff);
+  color: #fff;
+  cursor: pointer;
+}
+
+.chat-input-row button:hover {
+  filter: brightness(1.08);
+}

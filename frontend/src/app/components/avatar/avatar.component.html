@@ -1,0 +1,23 @@
+<section class="avatar-card">
+  <div class="live-pill">AI AVATAR DANG NOI</div>
+
+  @if (loading) {
+    <div class="loading-wrap">
+      <div class="spinner"></div>
+    </div>
+  } @else {
+    <div class="avatar-stage">
+      <div class="stars-overlay"></div>
+      <div class="portrait-frame">
+        <div class="portrait-art" [class.face-speaking]="speaking">
+          <div class="eye eye-left"></div>
+          <div class="eye eye-right"></div>
+          <div class="mouth" [class.mouth-speaking]="speaking"></div>
+        </div>
+      </div>
+      <p class="speech-text">
+        {{ text || 'AI avatar dang cho thong diep moi tu vu tru...' }}
+      </p>
+    </div>
+  }
+</section>

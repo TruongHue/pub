@@ -1,0 +1,49 @@
+<section class="form-card">
+  <div class="title-row">
+    <span class="title-bar"></span>
+    <h2>Xem van menh livestream</h2>
+  </div>
+
+  <form class="form-stack" [formGroup]="form" (ngSubmit)="submit()">
+    <div class="grid-two">
+      <label>
+        <span>Your Name</span>
+        <input class="control" formControlName="name" placeholder="Enter full name" />
+      </label>
+      <label>
+        <span>Date Of Birth</span>
+        <input class="control" formControlName="birthDate" type="date" />
+      </label>
+    </div>
+    <label>
+      <span>Ask Oracle</span>
+      <textarea class="control control-textarea" formControlName="question" placeholder="Describe your current situation or ask about your destiny..."></textarea>
+    </label>
+    <input class="control control-time" formControlName="birthTime" type="time" />
+
+    <div class="quick-row">
+      @for (item of quickQuestions; track item) {
+        <button
+          type="button"
+          class="quick-chip"
+          (click)="fillQuickQuestion(item)"
+        >
+          @if ($index === 0) {✨}
+          @if ($index === 1) {❤️}
+          @if ($index === 2) {💰}
+          @if ($index === 3) {🔮}
+          {{ item }}
+        </button>
+      }
+    </div>
+
+    <div class="action-row">
+      <button class="btn btn-primary" type="submit">
+        Xem van menh
+      </button>
+    </div>
+    <button class="btn btn-secondary" type="button" (click)="askMore()">
+      Xem tiep van menh
+    </button>
+  </form>
+</section>

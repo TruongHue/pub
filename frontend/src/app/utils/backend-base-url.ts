@@ -3,7 +3,8 @@
  */
 export function backendBaseUrl(port: number): string {
   if (typeof window === 'undefined') {
-    return `http://127.0.0.1:${port}`;
+    // return `http://127.0.0.1:${port}`;
+    return `https://akool.onrender.com`;
   }
-  return `http://${window.location.hostname}:${port}`;
+  return `https://akool.onrender.com`;
 }

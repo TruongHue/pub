@@ -133,10 +133,37 @@ label.operator-field-active span {
 
 .btn-primary {
   flex: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.55rem;
   color: #0c0618;
   font-weight: 700;
   background: linear-gradient(95deg, #ff2d92 0%, #ff6b2c 40%, #ffcc00 100%);
   box-shadow: 0 8px 24px rgba(255, 45, 146, 0.4);
+}
+
+.btn-primary:disabled,
+.btn-secondary:disabled,
+.quick-chip:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
+  filter: grayscale(0.15);
+}
+
+.btn-spinner {
+  width: 1.1rem;
+  height: 1.1rem;
+  border-radius: 999px;
+  border: 2px solid rgba(12, 6, 24, 0.35);
+  border-top-color: #0c0618;
+  animation: btn-oracle-spin 0.75s linear infinite;
+}
+
+@keyframes btn-oracle-spin {
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 .btn-secondary {

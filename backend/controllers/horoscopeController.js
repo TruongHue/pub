@@ -1,14 +1,16 @@
 const { generateHoroscope } = require("../services/gptService");
-const { synthesizeWithAzure } = require("../services/ttsService");
+const { synthesizeSpeech } = require("../services/ttsService");
 
 async function runPipeline(payload) {
   const horoscope = await generateHoroscope(payload);
   const personalizedText = `${payload.name}, ${horoscope.text}`.trim();
   const ttsIntro = `Mình trả lời bạn ${payload.name}. Câu hỏi của bạn: ${payload.question}.`;
-  const ttsText = `${ttsIntro} ${personalizedText}`.trim();
+  const ttsBody = `${ttsIntro} ${personalizedText}`.trim();
+  const ttsThanks = "Cảm ơn bạn đã lắng nghe và tin tưởng Aura nhé.";
+  const ttsText = `${ttsBody} ${ttsThanks}`.trim();
   let audioUrl = null;
   try {
-    audioUrl = await synthesizeWithAzure({
+    audioUrl = await synthesizeSpeech({
       name: payload.name,
       mood: horoscope.mood,
       verdict: horoscope.verdict,

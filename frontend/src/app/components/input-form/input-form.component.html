@@ -4,7 +4,7 @@
     <h2>Xem vận mệnh livestream</h2>
   </div>
 
-  <form class="form-stack" [formGroup]="form" (ngSubmit)="submit()">
+  <form class="form-stack" [formGroup]="form" (ngSubmit)="submit()" [attr.aria-busy]="oracleLoading">
     <div class="grid-two">
       <label [class.operator-field-active]="operatorActive && operatorField === 'name'">
         <span>Your Name</span>
@@ -44,6 +44,7 @@
         <button
           type="button"
           class="quick-chip"
+          [disabled]="oracleLoading"
           (click)="fillQuickQuestion(item)"
         >
           @if ($index === 0) {✨}
@@ -56,11 +57,21 @@
     </div>
 
     <div class="action-row">
-      <button class="btn btn-primary" type="submit">
-        Xem vận mệnh
+      <button class="btn btn-primary" type="submit" [disabled]="oracleLoading">
+        @if (oracleLoading) {
+          <span class="btn-spinner" aria-hidden="true"></span>
+          <span>Đang gieo quẻ…</span>
+        } @else {
+          Xem vận mệnh
+        }
       </button>
     </div>
-    <button class="btn btn-secondary" type="button" (click)="askMore()">
+    <button
+      class="btn btn-secondary"
+      type="button"
+      [disabled]="oracleLoading"
+      (click)="askMore()"
+    >
       Xem tiếp vận mệnh
     </button>
   </form>

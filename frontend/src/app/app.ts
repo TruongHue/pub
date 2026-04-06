@@ -342,6 +342,7 @@ export class App implements OnDestroy {
     this.stopSpeech();
     try {
       const audio = new Audio(audioUrl);
+      audio.playbackRate = 0.9;
       this.activeAudio = audio;
       let started = false;
       const fallbackTimer = window.setTimeout(() => {
@@ -1252,12 +1253,12 @@ export class App implements OnDestroy {
     const preset = this.selectedVoicePreset();
     switch (preset) {
       case 'male_deep':
-        return { rate: 0.92, pitch: 0.9 };
+        return { rate: 0.86, pitch: 0.9 };
       case 'energetic':
-        return { rate: 1.05, pitch: 1.18 };
+        return { rate: 0.96, pitch: 1.18 };
       case 'female_clear':
       default:
-        return { rate: 0.95, pitch: 1.12 };
+        return { rate: 0.88, pitch: 1.12 };
     }
   }
 

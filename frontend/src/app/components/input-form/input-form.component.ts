@@ -25,6 +25,8 @@ export class InputFormComponent implements OnChanges {
   @Input() operatorActive = false;
   @Input() operatorField: '' | 'name' | 'birthDate' | 'question' = '';
   @Input() operatorPulse = false;
+  /** Đồng bộ với loading Oracle từ app — khóa form + hiển thị trên nút gửi */
+  @Input() oracleLoading = false;
   @Output() submitHoroscope = new EventEmitter<HoroscopePayload>();
   @Output() submitMore = new EventEmitter<void>();
 
@@ -43,6 +45,9 @@ export class InputFormComponent implements OnChanges {
   });
 
   submit(): void {
+    if (this.oracleLoading) {
+      return;
+    }
     if (this.form.invalid) {
       this.form.markAllAsTouched();
       return;
@@ -52,10 +57,16 @@ export class InputFormComponent implements OnChanges {
   }
 
   askMore(): void {
+    if (this.oracleLoading) {
+      return;
+    }
     this.submitMore.emit();
   }
 
   fillQuickQuestion(question: string): void {
+    if (this.oracleLoading) {
+      return;
+    }
     this.form.patchValue({ question });
   }
 

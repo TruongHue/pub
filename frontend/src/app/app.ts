@@ -1,4 +1,5 @@
 import { Component, NgZone, OnDestroy, effect, inject, signal } from '@angular/core';
+import { DomSanitizer, SafeResourceUrl } from '@angular/platform-browser';
 import { io, Socket } from 'socket.io-client';
 import { InputFormComponent } from './components/input-form/input-form.component';
 import { AvatarComponent } from './components/avatar/avatar.component';
@@ -11,6 +12,7 @@ import {
   parseStructuredLiveComment,
   StructuredLiveFields
 } from './utils/structured-live-comment';
+import { backendBaseUrl } from './utils/backend-base-url';
 
 interface LiveQueueItem {
   id?: string;
@@ -55,7 +57,7 @@ interface TtsChunkPlan {
   styleUrl: './app.css'
 })
 export class App implements OnDestroy {
-  private readonly liveApiUrl = 'http://localhost:3001';
+  private readonly liveApiUrl = backendBaseUrl(3001);
   private readonly liveSocket: Socket;
   private liveSessionId: string = crypto.randomUUID();
   private readonly liveSeenCommentIds = new Set<string>();
@@ -83,6 +85,7 @@ export class App implements OnDestroy {
   private queueTurnNeedsPlaybackGate = false;
   private queueAfterReadTimer: ReturnType<typeof setTimeout> | null = null;
   private readonly astrologyService = inject(AstrologyService);
+  private readonly sanitizer = inject(DomSanitizer);
   readonly loading = this.astrologyService.loading;
   readonly latestResult = this.astrologyService.latestResult;
   readonly errorMessage = this.astrologyService.errorMessage;
@@ -93,7 +96,7 @@ export class App implements OnDestroy {
   readonly chatMessages = signal<ChatMessage[]>([
     {
       author: 'System',
-      text: 'Livestream da bat. Vu tru dang lang nghe cau hoi cua ban...',
+      text: 'Livestream đã bật. Vũ trụ đang lắng nghe câu hỏi của bạn…',
       type: 'live'
     }
   ]);
@@ -106,18 +109,33 @@ export class App implements OnDestroy {
   private ttsActivePlain = '';
   private readonly ttsSegmentStarts = new Map<string, number>();
   private ttsViewportRaf: number | null = null;
+  private prefillTypingToken = 0;
+  private readonly prefillCharDelayMs = 16;
+  private readonly commentScanStepMs = 260;
   /** Vị trí ký tự (exclusive) đã đọc tới trong TTS; đồng bộ boundary event. */
   readonly ttsHighlightCharEnd = signal(0);
   readonly availableVoices = signal<VoiceOption[]>([]);
   readonly selectedVoiceId = signal<string>('auto');
   readonly selectedVoiceName = signal('Default');
   readonly selectedVoicePreset = signal<VoicePreset>('female_clear');
+  readonly bgmInput = signal('');
+  readonly bgmError = signal('');
+  readonly bgmVolume = signal(28);
+  readonly bgmEmbedUrl = signal<SafeResourceUrl | null>(null);
+  readonly operatorActive = signal(false);
+  readonly operatorStage = signal('');
+  readonly operatorField = signal<'' | 'name' | 'birthDate' | 'question'>('');
+  readonly operatorPulse = signal(false);
+  /** Vị trí khung hướng dẫn cú pháp (kéo thả); null = dùng góc mặc định trong CSS. */
+  readonly syntaxGuideLeft = signal<number | null>(null);
+  readonly syntaxGuideTop = signal<number | null>(null);
+  private readonly syntaxGuideLayoutKey = 'syntaxGuide.float.v1';
   private readonly onVoicesChanged = () => {
     this.refreshVoiceOptions();
   };
   private readonly fakeComments = [
     'Họ tên: Minh An\nNgày sinh: 15/08/1999\nCâu hỏi: Tuần này tình cảm của mình thế nào?',
-    'Họ tên: Gia Bảo\nNgày sinh: 2001-03-22\nCâu hỏi: Có nên đổi việc trong tháng này không?',
+    'Họ tên: Gia Bảo\nNgày sinh: 2001-03-22\nCâu hỏi: Có nên đổi người yêu này không?',
     'Họ tên: Thu Hà\nNgày sinh: 07/12/1995\nCâu hỏi: Người cũ có quay lại không?',
     'Họ tên: Quốc Huy\nNgày sinh: 01/01/2000\nCâu hỏi: 6 tháng tới mình cần tránh điều gì?',
     'Họ tên: Lan Chi\nNgày sinh: 28/02/1998\nCâu hỏi: Cơ hội công việc đang đến không?',
@@ -136,10 +154,11 @@ export class App implements OnDestroy {
           this.awaitingQueueReadingPlayback.set(true);
           this.queueTurnNeedsPlaybackGate = false;
         }
-        this.resultPopupOpen.set(true);
+        // Chỉ cần TTS/audio nói, không hiển thị popup nội dung (vì đã có khung live).
+        this.resultPopupOpen.set(false);
         this.scrollReadingToTop();
-        // Ket qua chi hien trong popup giua man hinh — khong day vao luong chat nhu comment.
-        this.playAudioOrSpeak(result.audioUrl, result.text);
+        // Kết quả chỉ hiển thị trong popup giữa màn hình — không đẩy vào luồng chat như comment.
+        this.playAudioOrSpeak(result.audioUrl, result.ttsText || result.text);
       }
     });
     effect(() => {
@@ -184,6 +203,7 @@ export class App implements OnDestroy {
         this.scheduleQueueDrain(400);
       }
     });
+    this.loadSyntaxGuideLayout();
   }
 
   private readonly queueReadingCooldownMs = 5_000;
@@ -271,6 +291,7 @@ export class App implements OnDestroy {
   private refreshTtsSegmentLayout(tts: string, r: HoroscopeResult): void {
     this.ttsSegmentStarts.clear();
     const hasStruct = !!(
+      (r.verdict && r.verdict.trim()) ||
       (r.hook && r.hook.trim()) ||
       (r.insight && r.insight.trim()) ||
       (r.warningOrOpportunity && r.warningOrOpportunity.trim()) ||
@@ -284,6 +305,7 @@ export class App implements OnDestroy {
     }
     let pos = 0;
     const fields: [string, string][] = [
+      ['verdict', r.verdict || ''],
       ['hook', r.hook || ''],
       ['insight', r.insight || ''],
       ['warningOrOpportunity', r.warningOrOpportunity || ''],
@@ -321,13 +343,33 @@ export class App implements OnDestroy {
     try {
       const audio = new Audio(audioUrl);
       this.activeAudio = audio;
-      audio.onplay = () => this.isSpeaking.set(true);
+      let started = false;
+      const fallbackTimer = window.setTimeout(() => {
+        if (started) return;
+        this.activeAudio = null;
+        this.isSpeaking.set(false);
+        try {
+          audio.pause();
+          audio.currentTime = 0;
+        } catch {
+          // noop
+        }
+        this.speak(fallbackText);
+      }, 1500);
+
+      audio.onplay = () => {
+        started = true;
+        clearTimeout(fallbackTimer);
+        this.isSpeaking.set(true);
+      };
       audio.onended = () => {
+        clearTimeout(fallbackTimer);
         this.isSpeaking.set(false);
         this.activeAudio = null;
         this.onHoroscopePlaybackFullyEnded();
       };
       audio.onerror = () => {
+        clearTimeout(fallbackTimer);
         this.isSpeaking.set(false);
         this.activeAudio = null;
         // If cloud audio fails on browser side, fallback to local TTS.
@@ -360,12 +402,12 @@ export class App implements OnDestroy {
     if (!this.lastPayload) return;
     const followupPayload: HoroscopePayload = {
       ...this.lastPayload,
-      question: `${this.lastPayload.question} (xem tiep van menh va loi khuyen hanh dong)`
+      question: `${this.lastPayload.question} (xem tiếp vận mệnh và lời khuyên hành động)`
     };
 
     this.appendMessage({
       author: 'System',
-      text: 'Xem tiep van menh: ban dang mo khoa mot tang nang luong moi.',
+      text: 'Xem tiếp vận mệnh: bạn đang mở khóa một tầng năng lượng mới.',
       type: 'live'
     });
     this.lastPayload = followupPayload;
@@ -405,6 +447,8 @@ export class App implements OnDestroy {
   }
 
   ngOnDestroy(): void {
+    this.prefillTypingToken += 1;
+    this.clearOperatorPlayback();
     this.stopSpeech();
     this.liveSocket.disconnect();
     this.stopFallbackComments();
@@ -416,7 +460,8 @@ export class App implements OnDestroy {
   }
 
   private appendMessage(message: ChatMessage): void {
-    this.chatMessages.update((prev) => [...prev.slice(-45), message]);
+    // Show hết comment (không cắt bớt lịch sử).
+    this.chatMessages.update((prev) => [...prev, message]);
   }
 
   private initLiveCommentsFlow(): void {
@@ -433,7 +478,7 @@ export class App implements OnDestroy {
         this.liveSocket.emit('live:join', { sessionId: this.liveSessionId });
         this.appendMessage({
           author: 'System',
-          text: `Da ket noi comment loc (session: ${this.liveSessionId.slice(0, 8)}...). Chi hien thi dung cu phap "Họ tên:" / "Ngày sinh:" / "Câu hỏi:". Binh luan hop le duoc them vao hang cho, Oracle tra loi tuan tu.`,
+          text: `Đã kết nối live feed (session: ${this.liveSessionId.slice(0, 8)}…). Hiển thị toàn bộ comment. Chỉ những câu hợp lệ mới vào hàng chờ Oracle.`,
           type: 'live'
         });
       } catch (error) {
@@ -442,7 +487,7 @@ export class App implements OnDestroy {
         const errorText = error instanceof Error ? error.message : 'unknown';
         this.appendMessage({
           author: 'System',
-          text: `Khong khoi tao duoc phien comment da loc (${errorText}). Dang chuyen sang comment mo phong.`,
+          text: `Không khởi tạo được phiên comment đã lọc (${errorText}). Đang chuyển sang comment mô phỏng.`,
           type: 'live'
         });
       }
@@ -455,26 +500,24 @@ export class App implements OnDestroy {
 
     this.liveSocket.on('live:state', (state: LiveStatePayload) => {
       const queue = state?.mainQueue || [];
-      const structuredItems: LiveQueueItem[] = [];
-      for (const item of queue) {
-        const parsed = parseStructuredLiveComment(item.comment?.trim() || '');
-        if (!parsed) continue;
-        structuredItems.push({ ...item, parsed });
-      }
-      for (const item of structuredItems) {
+      for (const rawItem of queue) {
+        const parsed = parseStructuredLiveComment(rawItem.comment?.trim() || '');
+        const item: LiveQueueItem = { ...rawItem, parsed: parsed || undefined };
         const key = this.commentKey(item);
         if (!key || this.liveSeenCommentIds.has(key)) continue;
         this.liveSeenCommentIds.add(key);
-        const parsed = item.parsed!;
-        if (this.isCurrentlyDuplicateOracleQuestion(item, parsed)) {
-          continue;
-        }
+
+        // Luôn hiển thị full comment trong chat.
         this.appendMessage({
-          author: item.username || 'Viewer',
-          text: item.comment || '',
+          author: rawItem.username || 'Viewer',
+          text: rawItem.comment || '',
           type: 'live'
         });
-        this.offerOracleQueue(item);
+
+        // Chỉ câu hợp lệ mới vào hàng chờ Oracle.
+        if (item.parsed) {
+          this.offerOracleQueue(item);
+        }
       }
 
       // Keep memory bounded for long sessions.
@@ -604,8 +647,8 @@ export class App implements OnDestroy {
       author: 'System',
       text:
         waiting > 0
-          ? `🔔 Dang xem van menh cho ${next.parsed.name}. Con ${waiting} nguoi trong hang cho.`
-          : `🔔 Dang xem van menh cho ${next.parsed.name}. Hang cho trong.`,
+          ? `🔔 Đang xem vận mệnh cho ${next.parsed.name}. Còn ${waiting} người trong hàng chờ.`
+          : `🔔 Đang xem vận mệnh cho ${next.parsed.name}. Hàng chờ trống.`,
       type: 'live'
     });
 
@@ -621,17 +664,162 @@ export class App implements OnDestroy {
     const birthDate =
       parsed.birthDateInput || this.lastPayload?.birthDate?.trim() || this.defaultBirthDate();
 
-    this.autoFillName.set(parsed.name);
-    this.autoFillBirthDate.set(parsed.birthDateInput || '');
-    this.autoFillQuestion.set(parsed.question);
-
     const payload: HoroscopePayload = {
       name: parsed.name,
       birthDate,
       birthTime: this.lastPayload?.birthTime || '',
       question: parsed.question
     };
-    this.handleAsk(payload, { fromQueue });
+    if (fromQueue) {
+      void this.animateQueuePrefillThenAsk(payload);
+      return;
+    }
+    this.autoFillName.set(parsed.name);
+    this.autoFillBirthDate.set(parsed.birthDateInput || '');
+    this.autoFillQuestion.set(parsed.question);
+    this.handleAsk(payload, { fromQueue: false });
+  }
+
+  private async animateQueuePrefillThenAsk(payload: HoroscopePayload): Promise<void> {
+    this.clearOperatorPlayback();
+    this.prefillTypingToken += 1;
+    const token = this.prefillTypingToken;
+    this.operatorActive.set(true);
+    this.operatorStage.set('Đang rà bình luận…');
+    this.autoFillName.set('');
+    this.autoFillBirthDate.set('');
+    this.autoFillQuestion.set('');
+
+    await this.simulateCommentReview(token);
+    if (token !== this.prefillTypingToken) return;
+
+    this.operatorStage.set('Đang mở biểu mẫu…');
+    this.scrollToInputForm();
+    await this.sleep(320);
+    if (token !== this.prefillTypingToken) return;
+
+    this.operatorField.set('name');
+    this.operatorStage.set('Đang nhập họ tên…');
+    await this.typeSignal(this.autoFillName, payload.name || '', token, this.prefillCharDelayMs, true);
+    await this.sleep(120);
+    if (token !== this.prefillTypingToken) return;
+
+    this.operatorField.set('birthDate');
+    this.operatorStage.set('Đang nhập ngày sinh…');
+    await this.typeSignal(this.autoFillBirthDate, payload.birthDate || '', token, 22, false);
+    await this.sleep(110);
+    if (token !== this.prefillTypingToken) return;
+
+    this.operatorField.set('question');
+    this.operatorStage.set('Đang nhập câu hỏi…');
+    await this.typeSignal(this.autoFillQuestion, payload.question || '', token, this.prefillCharDelayMs, true);
+    await this.sleep(180);
+    if (token !== this.prefillTypingToken) return;
+
+    this.operatorField.set('');
+    this.operatorStage.set('Đang gửi yêu cầu xem…');
+    await this.sleep(220);
+    if (token !== this.prefillTypingToken) return;
+    this.handleAsk(payload, { fromQueue: true });
+    this.operatorStage.set('Đã gửi. Đang chờ Oracle phản hồi…');
+    setTimeout(() => {
+      if (token !== this.prefillTypingToken) return;
+      this.clearOperatorPlayback();
+    }, 1200);
+  }
+
+  private async typeSignal(
+    target: { set: (value: string) => void },
+    value: string,
+    token: number,
+    charDelayMs: number,
+    humanize: boolean
+  ): Promise<void> {
+    const text = String(value || '');
+    const typoIndex = humanize && text.length > 10 ? Math.floor(text.length * 0.55) : -1;
+    const typoChar = 'x';
+    let typoDone = false;
+
+    for (let i = 1; i <= text.length; i += 1) {
+      if (token !== this.prefillTypingToken) return;
+      target.set(text.slice(0, i));
+      this.blinkOperatorPulse(token);
+
+      if (humanize && !typoDone && i === typoIndex) {
+        target.set(text.slice(0, i) + typoChar);
+        this.blinkOperatorPulse(token);
+        await this.sleep(65);
+        if (token !== this.prefillTypingToken) return;
+        target.set(text.slice(0, i));
+        typoDone = true;
+      }
+
+      // Nhịp gõ tự nhiên hơn: nghỉ nhẹ theo cụm và dấu câu.
+      const ch = text[i - 1];
+      const extraPause = /[,.!?]/.test(ch) ? 75 : i % 9 === 0 ? 45 : 0;
+      await this.sleep(charDelayMs);
+      if (extraPause > 0) {
+        await this.sleep(extraPause);
+      }
+    }
+  }
+
+  private scrollToInputForm(): void {
+    if (typeof document === 'undefined') return;
+    const formWrap = document.getElementById('viewerInputPanel');
+    if (!formWrap) return;
+    formWrap.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }
+
+  private sleep(ms: number): Promise<void> {
+    return new Promise((resolve) => setTimeout(resolve, ms));
+  }
+
+  private async simulateCommentReview(token: number): Promise<void> {
+    if (typeof document === 'undefined') return;
+    const chatBox = document.querySelector('.chat-scroll') as HTMLElement | null;
+    const queueList = document.querySelector('.oracle-queue-list') as HTMLElement | null;
+
+    // Lướt lên/lướt xuống vài nhịp để giả lập thao tác "đọc comment".
+    await this.sweepScrollable(chatBox, token);
+    if (token !== this.prefillTypingToken) return;
+    await this.sweepScrollable(queueList, token);
+    if (token !== this.prefillTypingToken) return;
+    await this.sweepScrollable(chatBox, token, true);
+  }
+
+  private async sweepScrollable(
+    el: HTMLElement | null,
+    token: number,
+    reverseFirst = false
+  ): Promise<void> {
+    if (!el) return;
+    const max = Math.max(0, el.scrollHeight - el.clientHeight);
+    if (max <= 10) return;
+    const mid = Math.floor(max * 0.42);
+    const hi = Math.floor(max * 0.85);
+    const points = reverseFirst ? [mid, 0, hi, mid] : [hi, mid, 0, mid];
+
+    for (const p of points) {
+      if (token !== this.prefillTypingToken) return;
+      el.scrollTo({ top: p, behavior: 'smooth' });
+      await this.sleep(this.commentScanStepMs);
+    }
+  }
+
+  private blinkOperatorPulse(token: number): void {
+    this.operatorPulse.set(true);
+    setTimeout(() => {
+      if (token !== this.prefillTypingToken) return;
+      this.operatorPulse.set(false);
+    }, 80);
+  }
+
+  private clearOperatorPlayback(): void {
+    this.operatorActive.set(false);
+    this.operatorField.set('');
+    this.operatorStage.set('');
+    this.operatorPulse.set(false);
   }
 
   private defaultBirthDate(): string {
@@ -810,6 +998,7 @@ export class App implements OnDestroy {
       pieces.push({ value: v, rateDelta, pitchDelta });
     };
 
+    pushPiece(result.verdict, -0.06, -0.08);
     pushPiece(result.hook, 0.01, 0.08);
     pushPiece(result.insight, -0.02, -0.02);
     pushPiece(result.warningOrOpportunity, -0.08, -0.13);
@@ -845,18 +1034,170 @@ export class App implements OnDestroy {
 
   testSelectedVoice(): void {
     const previewText =
-      'Chao ban, day la giong AI avatar dang doc thu. Neu ban nghe ro va hop tai, hay giu giong nay.';
+      'Chào bạn, đây là giọng AI avatar đang đọc thử. Nếu bạn nghe rõ và hợp tai, hãy giữ giọng này.';
     this.speak(previewText, { skipPopupClose: true });
   }
 
   replayLatest(): void {
     const latest = this.latestResult();
     if (!latest?.text) return;
-    this.playAudioOrSpeak(latest.audioUrl, latest.text);
+    this.playAudioOrSpeak(latest.audioUrl, latest.ttsText || latest.text);
   }
 
   setVoicePreset(preset: VoicePreset): void {
     this.selectedVoicePreset.set(preset);
+  }
+
+  onSyntaxGuideDragStart(ev: PointerEvent): void {
+    if (typeof window === 'undefined' || ev.button !== 0) return;
+    ev.preventDefault();
+    const handle = ev.currentTarget as HTMLElement;
+    const panel = handle.closest('.syntax-guide-float') as HTMLElement | null;
+    if (!panel) return;
+
+    const rect = panel.getBoundingClientRect();
+    let left = this.syntaxGuideLeft();
+    let top = this.syntaxGuideTop();
+    if (left === null || top === null) {
+      left = rect.left;
+      top = rect.top;
+      this.syntaxGuideLeft.set(left);
+      this.syntaxGuideTop.set(top);
+    }
+
+    const startX = ev.clientX;
+    const startY = ev.clientY;
+    const startL = left;
+    const startT = top;
+    const w = rect.width;
+    const h = rect.height;
+    const margin = 8;
+
+    handle.setPointerCapture(ev.pointerId);
+
+    const onMove = (e: PointerEvent) => {
+      const vw = window.innerWidth;
+      const vh = window.innerHeight;
+      const nl = Math.min(Math.max(margin, startL + (e.clientX - startX)), vw - w - margin);
+      const nt = Math.min(Math.max(margin, startT + (e.clientY - startY)), vh - h - margin);
+      this.syntaxGuideLeft.set(nl);
+      this.syntaxGuideTop.set(nt);
+    };
+
+    const onUp = (e: PointerEvent) => {
+      handle.releasePointerCapture(e.pointerId);
+      window.removeEventListener('pointermove', onMove);
+      window.removeEventListener('pointerup', onUp);
+      window.removeEventListener('pointercancel', onUp);
+      this.persistSyntaxGuideLayout();
+    };
+
+    window.addEventListener('pointermove', onMove);
+    window.addEventListener('pointerup', onUp);
+    window.addEventListener('pointercancel', onUp);
+  }
+
+  private loadSyntaxGuideLayout(): void {
+    if (typeof window === 'undefined') return;
+    try {
+      const raw = window.localStorage.getItem(this.syntaxGuideLayoutKey);
+      if (!raw) return;
+      const p = JSON.parse(raw) as { left?: number; top?: number };
+      if (typeof p.left === 'number' && typeof p.top === 'number') {
+        this.syntaxGuideLeft.set(p.left);
+        this.syntaxGuideTop.set(p.top);
+      }
+    } catch {
+      /* ignore */
+    }
+  }
+
+  private persistSyntaxGuideLayout(): void {
+    if (typeof window === 'undefined') return;
+    const left = this.syntaxGuideLeft();
+    const top = this.syntaxGuideTop();
+    if (left === null || top === null) return;
+    try {
+      window.localStorage.setItem(this.syntaxGuideLayoutKey, JSON.stringify({ left, top }));
+    } catch {
+      /* ignore */
+    }
+  }
+
+  setBgmInput(value: string): void {
+    this.bgmInput.set(value || '');
+  }
+
+  setBgmVolume(value: number | string): void {
+    const parsed = Number(value);
+    const volume = Number.isFinite(parsed) ? Math.min(100, Math.max(0, Math.round(parsed))) : 28;
+    this.bgmVolume.set(volume);
+    this.pushYoutubeVolume();
+  }
+
+  applyBgmLink(): void {
+    const raw = this.bgmInput().trim();
+    const videoId = this.extractYoutubeVideoId(raw);
+    if (!videoId) {
+      this.bgmError.set('Link YouTube không hợp lệ. Dán link dạng watch, youtu.be, shorts, hoặc embed.');
+      return;
+    }
+
+    this.bgmError.set('');
+    const embed = `https://www.youtube.com/embed/${videoId}?autoplay=1&loop=1&playlist=${videoId}&controls=0&rel=0&modestbranding=1&enablejsapi=1&iv_load_policy=3`;
+    this.bgmEmbedUrl.set(this.sanitizer.bypassSecurityTrustResourceUrl(embed));
+    // Wait one tick for iframe creation, then push desired volume.
+    setTimeout(() => this.pushYoutubeVolume(), 650);
+  }
+
+  stopBgm(): void {
+    this.bgmEmbedUrl.set(null);
+  }
+
+  onBgmPlayerLoad(): void {
+    this.pushYoutubeVolume();
+  }
+
+  private pushYoutubeVolume(): void {
+    if (typeof document === 'undefined') return;
+    const frame = document.getElementById('bgmYoutubePlayer') as HTMLIFrameElement | null;
+    if (!frame?.contentWindow) return;
+
+    const volume = this.bgmVolume();
+    frame.contentWindow.postMessage(
+      JSON.stringify({ event: 'command', func: 'setVolume', args: [volume] }),
+      '*'
+    );
+    frame.contentWindow.postMessage(
+      JSON.stringify({ event: 'command', func: volume === 0 ? 'mute' : 'unMute', args: [] }),
+      '*'
+    );
+  }
+
+  private extractYoutubeVideoId(input: string): string | null {
+    const trimmed = (input || '').trim();
+    if (!trimmed) return null;
+    const plainId = /^[a-zA-Z0-9_-]{11}$/;
+    if (plainId.test(trimmed)) return trimmed;
+
+    try {
+      const url = new URL(trimmed);
+      const host = url.hostname.toLowerCase();
+      if (host.includes('youtu.be')) {
+        const id = url.pathname.replace(/^\/+/, '').split('/')[0];
+        return plainId.test(id) ? id : null;
+      }
+      if (host.includes('youtube.com')) {
+        const v = url.searchParams.get('v');
+        if (v && plainId.test(v)) return v;
+        const parts = url.pathname.split('/').filter(Boolean);
+        const idx = parts.findIndex((x) => x === 'embed' || x === 'shorts' || x === 'live');
+        if (idx >= 0 && parts[idx + 1] && plainId.test(parts[idx + 1])) return parts[idx + 1];
+      }
+    } catch {
+      return null;
+    }
+    return null;
   }
 
   private initSpeechVoices(): void {

@@ -22,14 +22,17 @@ export class InputFormComponent implements OnChanges {
   @Input() prefillName = '';
   @Input() prefillBirthDate = '';
   @Input() prefillQuestion = '';
+  @Input() operatorActive = false;
+  @Input() operatorField: '' | 'name' | 'birthDate' | 'question' = '';
+  @Input() operatorPulse = false;
   @Output() submitHoroscope = new EventEmitter<HoroscopePayload>();
   @Output() submitMore = new EventEmitter<void>();
 
   readonly quickQuestions = [
-    'Tuan nay chuyen tinh cam cua minh the nao?',
-    'Co hoi cong viec dang den khong?',
-    '6 thang toi minh can tranh dieu gi?',
-    'Nguoi cu co quay lai khong?'
+    'Tuần này chuyện tình cảm của mình thế nào?',
+    'Cơ hội công việc đang đến không?',
+    '6 tháng tới mình cần tránh điều gì?',
+    'Người cũ có quay lại không?'
   ];
 
   form = this.fb.group({

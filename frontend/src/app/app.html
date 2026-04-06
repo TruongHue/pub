@@ -16,33 +16,29 @@
 
   <div class="layout-grid">
     <div class="left-panel">
-      <app-chat [messages]="chatMessages()" (sendMessage)="handleManualLiveMessage($event)" />
-    </div>
+      <section class="panel-card panel-live">
+        <header class="panel-head">
+          <p class="panel-kicker">Kênh kết nối</p>
+          <h2 class="panel-title">Live Energy Feed</h2>
+        </header>
+        <app-chat [messages]="chatMessages()" (sendMessage)="handleManualLiveMessage($event)" />
+      </section>
 
-    <section class="center-panel">
-      <div class="hero-card">
-        <h1>AI Astrology Avatar</h1>
-        <p>
-          Step into the digital nexus where ancient wisdom meets algorithmic precision.
-          The Oracle awaits your inquiry.
-        </p>
-      </div>
-
-      <section class="oracle-queue-card" aria-label="Hang cho Oracle">
+      <section class="oracle-queue-card" aria-label="Hàng chờ Oracle">
         <header class="oracle-queue-head">
           <div class="oracle-queue-title-row">
-            <h2 class="oracle-queue-title">Hang cho Oracle</h2>
+            <h2 class="oracle-queue-title">Hàng chờ Oracle</h2>
             <span class="oracle-queue-count">{{ oracleQueueSize() }}</span>
           </div>
           <p class="oracle-queue-sub">
-            Xu ly tuan tu: #1 la nguoi sap duoc xem. Them binh luan dung cu phap Ho ten / Ngay sinh / Cau hoi.
+            Xử lý tuần tự: #1 là người sắp được xem. Thêm bình luận đúng cú pháp Họ tên / Ngày sinh / Câu hỏi.
           </p>
           @if (loading() && expectQueueCompletion()) {
-            <p class="oracle-queue-active">Dang tra loi mot nguoi trong hang cho...</p>
+            <p class="oracle-queue-active">Đang trả lời một người trong hàng chờ…</p>
           }
         </header>
         @if (oracleQueueRows().length === 0) {
-          <p class="oracle-queue-empty">Chua co ai trong hang.</p>
+          <p class="oracle-queue-empty">Chưa có ai trong hàng.</p>
         } @else {
           <ul class="oracle-queue-list">
             @for (row of oracleQueueRows(); track row.trackId) {
@@ -53,7 +49,7 @@
                     {{ row.fullName }}
                     <span class="oq-viewer">@{{ row.viewer }}</span>
                   </div>
-                  <div class="oq-line oq-meta">Ngay sinh: {{ row.birthDisplay }}</div>
+                  <div class="oq-line oq-meta">Ngày sinh: {{ row.birthDisplay }}</div>
                   <div class="oq-line oq-q">{{ row.questionPreview }}</div>
                 </div>
               </li>
@@ -62,76 +58,159 @@
         }
       </section>
 
-      <app-input-form
-        [prefillName]="autoFillName()"
-        [prefillBirthDate]="autoFillBirthDate()"
-        [prefillQuestion]="autoFillQuestion()"
-        (submitHoroscope)="handleAsk($event)"
-        (submitMore)="handleAskMore()"
-      />
+      @if (loading()) {
+        <section class="oracle-loading-card" aria-live="polite">
+          <div class="oracle-loading-orb" aria-hidden="true"></div>
+          <div class="oracle-loading-content">
+            <p class="oracle-loading-kicker">Đang kết nối với Oracle</p>
+            <h3 class="oracle-loading-title">Vũ trụ đang tổng hợp tín hiệu…</h3>
+            <p class="oracle-loading-sub">Đang đọc lại câu hỏi, cân năng lượng và chuẩn bị lời giải cho lượt hiện tại.</p>
+            <div class="oracle-loading-wave" aria-hidden="true">
+              <span></span><span></span><span></span>
+            </div>
+          </div>
+        </section>
+      }
+    </div>
+
+    <section class="center-panel">
+      <div class="hero-card">
+        <p class="hero-kicker">Nghiêm thần · Trực giác · Vận mệnh</p>
+        <h1>AI Astrology Avatar</h1>
+        <p>
+          Step into the digital nexus where ancient wisdom meets algorithmic precision.
+          The Oracle awaits your inquiry.
+        </p>
+      </div>
+
+      <section id="viewerInputPanel" class="panel-card panel-form">
+        <header class="panel-head">
+          <p class="panel-kicker">Nghiêm túc</p>
+          <h2 class="panel-title">Nhập thông tin để gieo quẻ</h2>
+        </header>
+        @if (operatorActive()) {
+          <div class="operator-status" [class.operator-pulse]="operatorPulse()">
+            <span class="operator-dot" aria-hidden="true"></span>
+            <span class="operator-text">{{ operatorStage() }}</span>
+          </div>
+        }
+        <app-input-form
+          [prefillName]="autoFillName()"
+          [prefillBirthDate]="autoFillBirthDate()"
+          [prefillQuestion]="autoFillQuestion()"
+          [operatorActive]="operatorActive()"
+          [operatorField]="operatorField()"
+          [operatorPulse]="operatorPulse()"
+          (submitHoroscope)="handleAsk($event)"
+          (submitMore)="handleAskMore()"
+        />
+      </section>
     </section>
 
     <div class="right-panel">
       <app-avatar
-        [text]="latestResult() ? 'Ket qua day du: xem popup giua man hinh.' : ''"
+        [text]="''"
         [mood]="latestResult()?.mood || 'mysterious'"
         [speaking]="isSpeaking()"
         [loading]="loading()"
       />
-      <section class="oracle-response">
-        <h3>Oracle Response</h3>
-        @if (latestResult()) {
-          <p class="oracle-response-hint">
-            Van lo hien thi o <strong>cua so popup noi giua man hinh</strong>, khong day vao khung chat hay nhan ban day dong o day.
-          </p>
-        } @else {
-          <p>Chua co ket qua. Khi san sang, Oracle se mo popup noi giua man hinh de ban doc.</p>
-        }
-        <div class="response-actions">
-          <button type="button">Save Reading</button>
-          <button type="button">Share Insight</button>
-        </div>
-      </section>
+
       <section class="compact-controls">
-        @if (loading()) {
-          <div class="status-chip">Dang giai ma nang luong vi tinh...</div>
-        }
-        @if (errorMessage()) {
-          <div class="error-chip">{{ errorMessage() }}</div>
-        }
-        <div class="status-chip controls-card">
-          Voice: {{ selectedVoiceName() }}
+        <div class="status-chip controls-card bgm-card">
+          <span class="bgm-card-title">Nhạc nền</span>
+          <p class="bgm-card-hint">Dán link YouTube — chỉ phát âm thanh, không hiện video.</p>
           <div class="voice-row">
-            <select
-              id="voiceSelect"
-              class="voice-select"
-              [value]="selectedVoiceId()"
-              (change)="setSelectedVoice($any($event.target).value)"
-            >
-              <option value="auto">Auto Vietnamese</option>
-              @for (voice of availableVoices(); track voice.id) {
-                <option [value]="voice.id">{{ voice.name }} ({{ voice.lang }})</option>
-              }
-            </select>
+            <input
+              class="voice-select bgm-link-input"
+              type="text"
+              placeholder="Dán link"
+              [value]="bgmInput()"
+              (input)="setBgmInput($any($event.target).value)"
+            />
+            <button class="voice-test-btn" type="button" (click)="applyBgmLink()">Bật nhạc</button>
+            <button class="voice-test-btn" type="button" [disabled]="!bgmEmbedUrl()" (click)="stopBgm()">Tắt</button>
           </div>
+          @if (bgmError()) {
+            <p class="bgm-error">{{ bgmError() }}</p>
+          }
           <div class="voice-row">
-            <select
-              id="voicePreset"
-              class="voice-select"
-              [value]="selectedVoicePreset()"
-              (change)="setVoicePreset($any($event.target).value)"
-            >
-              <option value="female_clear">Nu ro</option>
-              <option value="male_deep">Nam tram</option>
-              <option value="energetic">Nhanh nang luong</option>
-            </select>
-            <button class="voice-test-btn" type="button" (click)="testSelectedVoice()">Nghe thu</button>
-            <button class="voice-test-btn" type="button" [disabled]="!latestResult()?.text" (click)="replayLatest()">Nghe lai</button>
+            <label class="bgm-volume-label" for="bgmVolume">Am luong: {{ bgmVolume() }}%</label>
+            <input
+              id="bgmVolume"
+              class="bgm-volume"
+              type="range"
+              min="0"
+              max="100"
+              step="1"
+              [value]="bgmVolume()"
+              (input)="setBgmVolume($any($event.target).value)"
+            />
           </div>
+          @if (bgmEmbedUrl(); as embedUrl) {
+            <div class="bgm-player-wrap" aria-hidden="true">
+              <iframe
+                id="bgmYoutubePlayer"
+                class="bgm-player"
+                [src]="embedUrl"
+                title="Nhạc nền YouTube (âm thanh)"
+                allow="autoplay; encrypted-media"
+                referrerpolicy="strict-origin-when-cross-origin"
+                loading="lazy"
+                (load)="onBgmPlayerLoad()"
+              ></iframe>
+            </div>
+          }
         </div>
       </section>
     </div>
   </div>
+
+  <aside
+    class="syntax-guide-float"
+    [class.syntax-guide-float--placed]="syntaxGuideLeft() !== null && syntaxGuideTop() !== null"
+    [style.left.px]="syntaxGuideLeft() ?? undefined"
+    [style.top.px]="syntaxGuideTop() ?? undefined"
+    aria-label="Cú pháp live vào hàng chờ"
+  >
+    <div class="syntax-guide-glow" aria-hidden="true"></div>
+    <header
+      class="syntax-guide-head"
+      (pointerdown)="onSyntaxGuideDragStart($event)"
+      title="Giữ và kéo để di chuyển"
+    >
+      <span class="syntax-guide-drag-hint" aria-hidden="true"></span>
+      <span class="syntax-guide-badge">Live</span>
+      <h3 class="syntax-guide-title">Cú pháp vào hàng</h3>
+    </header>
+    <p class="syntax-guide-lead">Đủ 3 dòng → vào hàng chờ.</p>
+    <div class="syntax-guide-table-wrap">
+      <table class="syntax-guide-table">
+        <thead>
+          <tr>
+            <th scope="col">Ghi</th>
+            <th scope="col">Ví dụ</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Họ tên:</td>
+            <td>Nguyễn Văn A</td>
+          </tr>
+          <tr>
+            <td>Ngày sinh:</td>
+            <td>15/03/1995</td>
+          </tr>
+          <tr>
+            <td>Câu hỏi:</td>
+            <td>Tháng này có nên đổi người yêu?</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="syntax-guide-foot">
+      <strong>1 dòng:</strong> <code>Họ tên: A, Ngày sinh: 1/1/2000, Câu hỏi: …</code>
+    </p>
+  </aside>
 
   @if (resultPopupOpen() && latestResult(); as popup) {
     <div
@@ -146,25 +225,25 @@
         aria-labelledby="result-popup-title"
         (click)="$event.stopPropagation()"
       >
-        <button type="button" class="result-popup-close" (click)="closeResultPopup()" aria-label="Dong">
+        <button type="button" class="result-popup-close" (click)="closeResultPopup()" aria-label="Đóng">
           &times;
         </button>
         <header class="result-popup-header">
           <div class="result-popup-header-text">
-            <p class="result-popup-kicker">Oracle · Van menh</p>
-            <h2 id="result-popup-title" class="result-popup-title">Ket qua</h2>
+            <p class="result-popup-kicker">Oracle · Vận mệnh</p>
+            <h2 id="result-popup-title" class="result-popup-title">Kết quả</h2>
           </div>
           <div class="result-popup-header-glow" aria-hidden="true"></div>
         </header>
         @if (resultPopupUserQuestion()) {
-          <section class="rpop-user-block" aria-label="Cau hoi cua ban">
+          <section class="rpop-user-block" aria-label="Câu hỏi của bạn">
             @if (resultPopupUserName()) {
               <p class="rpop-user-name">
-                <span class="rpop-user-meta">Ten</span>
+                <span class="rpop-user-meta">Tên</span>
                 {{ resultPopupUserName() }}
               </p>
             }
-            <p class="rpop-user-q-label">Cau hoi cua ban</p>
+            <p class="rpop-user-q-label">Câu hỏi của bạn</p>
             <p class="rpop-user-q">{{ resultPopupUserQuestion() }}</p>
           </section>
         }
@@ -172,10 +251,11 @@
           <div class="rpop-reading">
             <div class="rpop-reading-head">
               <span class="rpop-reading-mark" aria-hidden="true">✦</span>
-              <h3 class="rpop-reading-title">Bai doc</h3>
+              <h3 class="rpop-reading-title">Bài đọc</h3>
             </div>
 
             @if (
+              popup.verdict ||
               popup.hook ||
               popup.insight ||
               popup.warningOrOpportunity ||
@@ -184,9 +264,19 @@
               popup.funnyLine
             ) {
               <div class="rpop-sections">
+                @if (popup.verdict) {
+                  <article class="rpop-section rpop-sec-verdict">
+                    <h4 class="rpop-sec-label">Chốt hạ</h4>
+                    <div class="rpop-sec-bar"></div>
+                    <p class="rpop-sec-body rpop-verdict-line">
+                      <span class="rpop-tts-spoken">{{ popup.verdict.slice(0, segmentReadEnd('verdict', popup.verdict)) }}</span
+                      ><span class="rpop-tts-rest">{{ popup.verdict.slice(segmentReadEnd('verdict', popup.verdict)) }}</span>
+                    </p>
+                  </article>
+                }
                 @if (popup.hook) {
                   <article class="rpop-section rpop-sec-hook">
-                    <h4 class="rpop-sec-label">Mo dau</h4>
+                    <h4 class="rpop-sec-label">Mở đầu</h4>
                     <div class="rpop-sec-bar"></div>
                     <p class="rpop-sec-body">
                       <span class="rpop-tts-spoken">{{ popup.hook.slice(0, segmentReadEnd('hook', popup.hook)) }}</span
@@ -196,7 +286,7 @@
                 }
                 @if (popup.insight) {
                   <article class="rpop-section rpop-sec-insight">
-                    <h4 class="rpop-sec-label">Phan tich · Vibe</h4>
+                    <h4 class="rpop-sec-label">Phân tích · Vibe</h4>
                     <div class="rpop-sec-bar"></div>
                     <p class="rpop-sec-body">
                       <span class="rpop-tts-spoken">{{ popup.insight.slice(0, segmentReadEnd('insight', popup.insight)) }}</span
@@ -206,7 +296,7 @@
                 }
                 @if (popup.warningOrOpportunity) {
                   <article class="rpop-section rpop-sec-signal">
-                    <h4 class="rpop-sec-label">Canh bao hoac co hoi</h4>
+                    <h4 class="rpop-sec-label">Cảnh báo hoặc cơ hội</h4>
                     <div class="rpop-sec-bar"></div>
                     <p class="rpop-sec-body">
                       <span class="rpop-tts-spoken">{{
@@ -220,7 +310,7 @@
                 }
                 @if (popup.action) {
                   <article class="rpop-section rpop-sec-action">
-                    <h4 class="rpop-sec-label">Loi khuyen hanh dong</h4>
+                    <h4 class="rpop-sec-label">Lời khuyên hành động</h4>
                     <div class="rpop-sec-bar"></div>
                     <p class="rpop-sec-body">
                       <span class="rpop-tts-spoken">{{ popup.action.slice(0, segmentReadEnd('action', popup.action)) }}</span
@@ -230,7 +320,7 @@
                 }
                 @if (popup.luckyHint) {
                   <article class="rpop-section rpop-sec-luck">
-                    <h4 class="rpop-sec-label">Dau hieu may man</h4>
+                    <h4 class="rpop-sec-label">Dấu hiệu may mắn</h4>
                     <div class="rpop-sec-bar"></div>
                     <p class="rpop-sec-body">
                       <span class="rpop-tts-spoken">{{ popup.luckyHint.slice(0, segmentReadEnd('luckyHint', popup.luckyHint)) }}</span
@@ -240,7 +330,7 @@
                 }
                 @if (popup.funnyLine) {
                   <article class="rpop-section rpop-sec-fun">
-                    <h4 class="rpop-sec-label">Cau hai huoc</h4>
+                    <h4 class="rpop-sec-label">Câu hài hước</h4>
                     <div class="rpop-sec-bar"></div>
                     <p class="rpop-sec-body">
                       <span class="rpop-tts-spoken">{{ popup.funnyLine.slice(0, segmentReadEnd('funnyLine', popup.funnyLine)) }}</span
@@ -251,7 +341,7 @@
               </div>
             } @else {
               <article class="rpop-section rpop-sec-full">
-                <h4 class="rpop-sec-label">Toan van</h4>
+                <h4 class="rpop-sec-label">Toàn văn</h4>
                 <div class="rpop-sec-bar"></div>
                 <p class="rpop-sec-body">
                   <span class="rpop-tts-spoken">{{ popup.text.slice(0, segmentReadEnd('__full', popup.text)) }}</span
@@ -264,8 +354,8 @@
         @if (awaitingQueueReadingPlayback()) {
           <footer class="rpop-footer">
             <p class="rpop-queue-hint">
-              Dang doc ket qua. Sau khi doc xong, he thong nghi ~5 giay roi tu dong chuyen nguoi tiep theo
-              trong hang cho.
+              Đang đọc kết quả. Sau khi đọc xong, hệ thống nghỉ ~5 giây rồi tự động chuyển người tiếp theo trong
+              hàng chờ.
             </p>
           </footer>
         }

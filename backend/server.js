@@ -8,14 +8,34 @@ const { runPipeline } = require("./controllers/horoscopeController");
 
 const app = express();
 const server = http.createServer(app);
+function socketIoCorsOrigin() {
+  const raw = process.env.FRONTEND_ORIGINS || process.env.FRONTEND_ORIGIN;
+  if (!raw || raw.trim() === "*") {
+    return true;
+  }
+  const list = raw
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean);
+  if (list.length === 0) {
+    return true;
+  }
+  return list.length === 1 ? list[0] : list;
+}
+
 const io = new Server(server, {
   cors: {
-    origin: process.env.FRONTEND_ORIGIN || "http://localhost:4200",
+    origin: socketIoCorsOrigin(),
     methods: ["GET", "POST"]
   }
 });
 
-app.use(cors());
+app.use(
+  cors({
+    origin: true,
+    credentials: true
+  })
+);
 app.use(express.json({ limit: "2mb" }));
 
 app.get("/health", (_req, res) => {
@@ -44,7 +64,9 @@ io.on("connection", (socket) => {
   });
 });
 
-const PORT = process.env.PORT || 3000;
-server.listen(PORT, () => {
-  console.log(`Backend running on http://localhost:${PORT}`);
+const PORT = Number(process.env.PORT) || 3000;
+const HOST = process.env.HOST || "0.0.0.0";
+
+server.listen(PORT, HOST, () => {
+  console.log(`Backend http://localhost:${PORT} (LAN: http://<IP-máy>:${PORT})`);
 });

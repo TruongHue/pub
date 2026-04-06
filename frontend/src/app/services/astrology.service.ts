@@ -1,5 +1,6 @@
 import { Injectable, signal } from '@angular/core';
 import { io, Socket } from 'socket.io-client';
+import { backendBaseUrl } from '../utils/backend-base-url';
 
 export type Mood = 'mysterious' | 'warning' | 'positive';
 
@@ -12,8 +13,12 @@ export interface HoroscopePayload {
 
 export interface HoroscopeResult {
   text: string;
+  /** Bản đọc TTS (có thể gồm phần nhắc lại người hỏi + câu hỏi). */
+  ttsText?: string;
   audioUrl?: string | null;
   mood: Mood;
+  /** Câu chốt hạ đầu tiên (Nên / Không nên / Có / Không …). */
+  verdict?: string;
   hook: string;
   insight: string;
   warningOrOpportunity: string;
@@ -30,7 +35,7 @@ export class AstrologyService {
   readonly latestResult = signal<HoroscopeResult | null>(null);
 
   constructor() {
-    this.socket = io('http://localhost:3000', { transports: ['websocket'] });
+    this.socket = io(backendBaseUrl(3000), { transports: ['websocket'] });
     this.registerSocketEvents();
   }
 
@@ -57,7 +62,7 @@ export class AstrologyService {
     });
 
     this.socket.on('connect_error', () => {
-      this.errorMessage.set('Khong ket noi duoc backend. Hay kiem tra server.');
+      this.errorMessage.set('Không kết nối được backend. Hãy kiểm tra server.');
       this.loading.set(false);
     });
   }

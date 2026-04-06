@@ -4,18 +4,21 @@ const { synthesizeWithAzure } = require("../services/ttsService");
 async function runPipeline(payload) {
   const horoscope = await generateHoroscope(payload);
   const personalizedText = `${payload.name}, ${horoscope.text}`.trim();
+  const ttsIntro = `Mình trả lời bạn ${payload.name}. Câu hỏi của bạn: ${payload.question}.`;
+  const ttsText = `${ttsIntro} ${personalizedText}`.trim();
   let audioUrl = null;
   try {
     audioUrl = await synthesizeWithAzure({
       name: payload.name,
       mood: horoscope.mood,
+      verdict: horoscope.verdict,
       hook: horoscope.hook,
       insight: horoscope.insight,
       warningOrOpportunity: horoscope.warningOrOpportunity,
       action: horoscope.action,
       luckyHint: horoscope.luckyHint,
       funnyLine: horoscope.funnyLine,
-      text: personalizedText
+      text: ttsText
     });
   } catch (error) {
     audioUrl = null;
@@ -26,6 +29,7 @@ async function runPipeline(payload) {
     noiDung: personalizedText,
     amThanh: audioUrl,
     tamTrang: horoscope.mood,
+    cauChotHa: horoscope.verdict || "",
     moDau: horoscope.hook || "",
     phanTich: horoscope.insight || "",
     canhBaoHoacCoHoi: horoscope.warningOrOpportunity || "",
@@ -34,8 +38,10 @@ async function runPipeline(payload) {
     cauHaiHuoc: horoscope.funnyLine || "",
     // JSON key cu (giu tuong thich frontend hien tai)
     text: personalizedText,
+    ttsText,
     audioUrl,
     mood: horoscope.mood,
+    verdict: horoscope.verdict || "",
     hook: horoscope.hook || "",
     insight: horoscope.insight || "",
     warningOrOpportunity: horoscope.warningOrOpportunity || "",

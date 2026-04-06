@@ -6,32 +6,38 @@ const OPENROUTER_MODEL = process.env.OPENROUTER_MODEL || "openai/gpt-4o-mini";
 const OPENROUTER_FALLBACK_MODEL = (process.env.OPENROUTER_FALLBACK_MODEL || "").trim();
 const OPENROUTER_TIMEOUT_MS = Number(process.env.OPENROUTER_TIMEOUT_MS) || 60_000;
 
-const DRAMATIC_LINES = [
-  "Lá số này đang rung động theo cách rất hiếm...",
-  "Bạn đang đứng trước một cánh cửa năng lượng lớn.",
-  "Một dấu hiệu mạnh đang xuất hiện quanh bạn."
+const PSY_HOOK_LINES = [
+  "Nói thật, có một điều bạn chưa nhận ra là bạn đang tự đặt áp lực lên mình nhiều hơn là chuyện thật sự cần.",
+  "Thật ra mình thấy bạn không hề lơ đãng đâu, bạn chỉ đang mệt vì cố giữ mọi thứ trông ổn.",
+  "Có một pattern nhỏ: mỗi khi bạn lo, bạn lại đi giải thích cho người khác nghe thay vì tự hỏi mình cần gì."
 ];
 
-const HOOK_LINES = [
-  "Điều này không phải ai cũng nhận ra...",
-  "Có một năng lượng đang ảnh hưởng đến bạn...",
-  "Vũ trụ đang gửi một tín hiệu rất mạnh tới bạn..."
+const PSY_ANALYSIS_FRAGMENTS = [
+  "Nhịp tâm lý của bạn đang hơi nghiêng về kiểu 'suy nhiều hơn làm'.",
+  "Bạn hay tự lý hoá cảm xúc, nên đôi khi tưởng là ổn nhưng bên trong vẫn còn vướng.",
+  "Bạn không thiếu quyết đoán, bạn chỉ cần một lý do đủ rõ để chọn thay vì chọn cho xong."
 ];
 
 const ADVICE_LINES = [
-  "Hãy hành động chậm mà chắc trong 3 ngày tới.",
-  "Đừng trì hoãn quyết định quan trọng nữa.",
-  "Tin vào trực giác của bạn, nhưng vẫn giữ đầu lạnh.",
-  "Bạn cần cắt bỏ một điều cũ để đón cơ hội mới."
+  "Hôm nay thử viết ra một dòng: mình đang sợ điều gì nhất, rồi làm ngược lại một bước rất nhỏ.",
+  "Đừng bắt mình phải chốt hết trong một ngày; chọn một việc duy nhất và làm xong nó là đủ.",
+  "Khi đầu on, hạ nhịp lại: uống nước, đi vài phút, rồi mới nhắn hoặc quyết định.",
+  "Nói thật với một người bạn tin được một câu bạn đang né, đừng cần drama."
 ];
 
-const LUCKY_SIGNS = ["2", "7", "9", "14", "22", "Moon", "Venus", "Blue", "Purple"];
-const FUNNY_LINES = [
-  "Nếu vũ trụ có nút 'skip drama' thì hôm nay bạn vừa bấm trúng rồi.",
-  "Bạn không toxic đâu, chỉ là Mercury đang trêu bạn xíu thôi.",
-  "Tôi thấy năng lượng bạn mạnh đến mức người cũ cũng phải xem lại lịch.",
-  "Hôm nay thần thái bạn đang ở level: 'main character' thật sự."
+const LUCKY_SIGNS = [
+  "Thứ tư hoặc tối muộn, màu xanh ngọc hoặc be, số 3 và 7.",
+  "Sáng sớm, màu lavender, nhắn một tin ngắn thay vì im lặng suy diễn.",
+  "Cuối tuần, đồ ấm, một cuộc gọi 5 phút thay vì stalk feed."
 ];
+
+const FUNNY_LINES = [
+  "Brain của bạn đôi khi như tab Chrome mở 40 cái, đóng được một cái là đã đỡ rồi.",
+  "Không phải lowkey toxic, chỉ là overthinking có bằng cấp thôi.",
+  "Vũ trụ không ghost bạn đâu, có khi bạn đang ghost chính mình."
+];
+
+const VERDICT_LINES = ["Nên.", "Không nên.", "Có.", "Không.", "Nên, nhưng đừng vội.", "Chưa nên.", "Có, nhưng có điều kiện."];
 
 function randomOf(arr) {
   return arr[Math.floor(Math.random() * arr.length)];
@@ -40,21 +46,31 @@ function randomOf(arr) {
 function buildFallback(input) {
   const moodPool = ["mysterious", "warning", "positive"];
   const mood = randomOf(moodPool);
-  const hook = randomOf(HOOK_LINES);
-  const dramatic = randomOf(DRAMATIC_LINES);
+  const hook = `${randomOf(PSY_HOOK_LINES)} Mình đang nói chuyện với ${input.name} về chuyện: ${input.question}.`;
+  const analysis = `${randomOf(PSY_ANALYSIS_FRAGMENTS)} Có thể bạn đang lặp lại một vòng suy nghĩ quen thuộc quanh câu hỏi này.`;
+  const tensionLine =
+    mood === "warning"
+      ? "Cảnh báo nhẹ: đừng để FOMO hoặc sợ bị đánh giá đẩy bạn chốt vội một điều chưa rõ ranh giới."
+      : "Cơ hội nằm ở chỗ bạn dám nói thật một nhu cầu nhỏ với chính mình, không cần phải hoàn hảo trước.";
   const advice = randomOf(ADVICE_LINES);
   const luckySign = randomOf(LUCKY_SIGNS);
   const funnyLine = randomOf(FUNNY_LINES);
-  const tensionLine =
-    mood === "warning"
-      ? "Có một tín hiệu cảnh báo nhỏ: đừng vội vàng ký kết hoặc tin người quá nhanh trong tuần này."
-      : "Một cửa sổ cơ hội đang mở ra, nhưng chỉ dành cho người dám đi bước đầu tiên.";
-  const insight = `${dramatic} Nhịp năng lượng của bạn hiện tại nghiêng về quyết định lớn liên quan đến "${input.question}".`;
-  const text = `${hook} ${input.name}, ${insight} ${tensionLine} Lời khuyên hành động: ${advice} Dấu hiệu may mắn hôm nay của bạn: ${luckySign}. ${funnyLine}`;
+  const cauChotHa = randomOf(VERDICT_LINES);
+  const text = `${cauChotHa} ${hook} ${analysis} ${tensionLine} ${advice} Dấu hiệu may mắn: ${luckySign}. ${funnyLine}`;
 
   return {
+    verdict: cauChotHa,
+    hook,
+    insight: analysis,
+    warningOrOpportunity: tensionLine,
+    action: advice,
+    luckyHint: luckySign,
+    funnyLine,
+    text,
+    mood,
+    cauChotHa,
     moDau: hook,
-    phanTich: insight,
+    phanTich: analysis,
     canhBaoHoacCoHoi: tensionLine,
     loiKhuyen: advice,
     dauHieuMayMan: luckySign,
@@ -65,49 +81,99 @@ function buildFallback(input) {
 }
 
 function buildPrompt({ name, birthDate, birthTime, question }) {
-  const bonusLine = DRAMATIC_LINES[Math.floor(Math.random() * DRAMATIC_LINES.length)];
-  return `Bạn là host livestream “tử vi / vibe check” kiểu Gen Z Việt Nam: năng lượng cao, hơi toxic vui, không giảng đời.
+  return `
+Bạn không phải thầy bói. Bạn là một người bạn thân nói chuyện rất thật, rất đời, kiểu Gen Z – giống như đang ngồi tám chuyện.
 
-PHONG CÁCH (bắt buộc):
-- Nói như bạn thân cap (capture) drama trên live: gọn, mạnh, có nhịp, vài câu hơi over nhưng không sến.
-- Trộn tự nhiên từ lóng mạng VN + tí tiếng Anh Gen Z khi hợp ngữ cảnh (ví dụ: vibe, energy, toxic, main character, lowkey, highkey, real, slay, era…) — đừng lạm dụng, khoảng vài từ trong cả bài là đủ.
-- Có thể: “không cap”, “chốt hạ”, “đúng là …”, “xứng đáng”, “tới công chuyện”, “ổn không ổn”, icon cảm xúc kiểu text nhẹ (1–2 chỗ) như “💀”, “✨” (chỉ trong chuỗi JSON, không line break thừa).
-- Tránh văn giấy tờ, tránh “kính gửi”, tránh câu dài hun hút; ưu tiên đoạn ngắn, đánh vào câu hỏi của họ.
-- Vẫn giữ aura thần bí livestream: hook mạnh ở đầu, có twist nhẹ, không biến thành meme list vô nghĩa.
+MỤC TIÊU:
+Nghe tự nhiên như người thật nói, nhưng vẫn phải “đọc vị tâm lý” khiến người đọc thấy bị hiểu.
 
-NỘI DUNG:
-- Gắn ngày sinh + câu hỏi vào câu chữ, cảm giác “đọc riêng cho ${name}”.
-- 5–8 câu ngắn (kiểu nói), dễ đọc cho TTS.
-- “moDau”: 1–2 câu hook kiểu Gen Z (bất ngờ / flex nhẹ vibe vũ trụ).
-- “phanTich”: chốt năng lượng + góc nhìn “đồng điệu” với câu hỏi.
-- “canhBaoHoacCoHoi”: một hướng red flag hoặc green flag ngắn, không dọa dẫm.
-- “loiKhuyen”: lời khuyên hành động kiểu “làm thế này là ổn nhất”.
-- “dauHieuMayMan”: 1 cụm may mắn kiểu Gen Z (số, màu, thời điểm trong ngày, hoặc “sign” vui).
-- “cauHaiHuoc”: 1 câu trêu nhẹ, meta, không đụng giới tính/dạng người/tôn giáo, không hate.
+NGÔN NGỮ (BẮT BUỘC):
+- Toàn bộ nội dung PHẢI là tiếng Việt 100%
+- Không dùng bất kỳ từ tiếng Anh nào (ví dụ: ok, yes, no, vibe, stress, deadline...)
+- Không trộn ngôn ngữ
+- Viết như đang nói chuyện ngoài đời
 
-“noiDung”: ghép toàn bộ thành một bản đọc liền mạch, cùng tone Gen Z (có thể lặp ý ngắt nhịp cho hay tai).
+STYLE:
+- Xưng: "mình - bạn"
+- Giọng: thân, gần gũi, hơi cà khịa nhẹ
+- Có thể dùng:
+  - "Nói thiệt nha..."
+  - "Có đó bà ơi..."
+  - "Mình nói cái này hơi đau nha..."
+  - "Nghe nè..."
+- Không được viết kiểu trang trọng
+- Không dùng từ học thuật
+- Không emoji
 
-“tamTrang”: chỉ một trong ba: mysterious | warning | positive
+QUAN TRỌNG NHẤT:
+- Phải có ít nhất 1 câu khiến người đọc kiểu:
+  → “Ủa sao nó biết vậy?”
+- Không được nói chung chung
+- Phải bám vào câu hỏi để suy ra tâm lý
 
-Trả về ĐÚNG một JSON (không markdown, không \`\`\`), cấu trúc:
+LOGIC:
+Từ câu hỏi → đoán ra:
+- bạn đang phân vân nhưng thật ra nghiêng về 1 phía
+- bạn sợ sai hoặc sợ mất
+- bạn đang cần ai đó xác nhận giúp
+
+OUTPUT:
 {
-  "moDau": "...",
-  "phanTich": "...",
-  "canhBaoHoacCoHoi": "...",
-  "loiKhuyen": "...",
-  "dauHieuMayMan": "...",
-  "cauHaiHuoc": "...",
-  "noiDung": "...",
-  "tamTrang": "mysterious | warning | positive"
+  "cau_chot_ha": "Có đó bà ơi." | "Không nha." | "Nên á." | "Đừng nha." | "Cũng được, mà khoan.",
+  
+  "hook": "mở đầu kiểu văn nói, tự nhiên",
+
+  "analysis": "phân tích tâm lý, nói như đang tâm sự",
+
+  "warning_or_opportunity": "cảnh báo hoặc cơ hội",
+
+  "advice": "lời khuyên đơn giản, thực tế",
+
+  "lucky_sign": "chi tiết đời thường (ngày, thời điểm, hành động nhỏ)",
+
+  "fun_line": "1 câu cà khịa nhẹ",
+
+  "tam_trang": "mysterious | warning | positive"
 }
 
-Gợi năng lượng kịch (có thể lồng ý, không copy nguyên): ${bonusLine}
+QUY TẮC CUỐI:
+- Không được thêm bất kỳ chữ tiếng Anh nào
+- Không giải thích
+- Không thêm text ngoài JSON
 
-Profile:
-- Tên: ${name}
-- Ngày sinh: ${birthDate}
-- Giờ sinh: ${birthTime || "chưa rõ, lowkey đoán vibe theo ngày"}
-- Câu hỏi: ${question}`;
+---
+
+THÔNG TIN:
+Tên: ${name}
+Ngày sinh: ${birthDate}
+Giờ sinh: ${birthTime || "không rõ"}
+Câu hỏi: ${question}
+`;
+}
+
+function cleanForTts(text) {
+  if (typeof text !== "string") return "";
+  let out = text.trim();
+  if (!out) return "";
+
+  // Remove common emoji/icon blocks that often make TTS awkward.
+  out = out.replace(/[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}\u{FE0F}]/gu, " ");
+
+  // Remove noisy decorative symbols while keeping Vietnamese punctuation.
+  out = out.replace(/[【】「」『』《》•·★☆✦✧✩✪◆◇■□▪◾◽]/g, " ");
+
+  // Normalize repeated punctuation and separators.
+  out = out
+    .replace(/[~`^*_+=|\\<>]+/g, " ")
+    .replace(/[!?]{2,}/g, ".")
+    .replace(/[.]{2,}/g, ".")
+    .replace(/[,]{2,}/g, ",")
+    .replace(/\s*\/\s*/g, ", ")
+    .replace(/\s*-\s*/g, " - ")
+    .replace(/\s+/g, " ")
+    .trim();
+
+  return out;
 }
 
 function tryParseJson(content) {
@@ -126,39 +192,70 @@ function tryParseJson(content) {
 
 function toSingleText(result) {
   if (!result || typeof result !== "object") return "";
-  const combined = result.noiDung || result.text;
+  const combined =
+    result.full_reading || result.fullReading || result.noiDung || result.text;
   if (typeof combined === "string" && combined.trim()) return combined.trim();
 
+  const verdictRaw = result.cau_chot_ha || result.cauChotHa || result.verdict || "";
+  const verdict = typeof verdictRaw === "string" ? verdictRaw.trim() : "";
+
+  const str = (v) => (typeof v === "string" ? v.trim() : "");
   const parts = [
-    result.moDau || result.hook,
-    result.phanTich || result.insight,
-    result.canhBaoHoacCoHoi || result.warningOrOpportunity,
-    (result.loiKhuyen || result.action) ? `Lời khuyên hành động: ${result.loiKhuyen || result.action}` : "",
-    (result.dauHieuMayMan || result.luckyHint) ? `Dấu hiệu may mắn: ${result.dauHieuMayMan || result.luckyHint}` : ""
-  ]
-    .filter((x) => typeof x === "string" && x.trim())
-    .map((x) => x.trim());
+    verdict,
+    str(result.hook || result.moDau),
+    str(result.analysis || result.phanTich || result.insight),
+    str(result.warning_or_opportunity || result.warningOrOpportunity || result.canhBaoHoacCoHoi),
+    str(result.advice || result.loiKhuyen || result.action),
+    str(result.lucky_sign || result.luckySign || result.dauHieuMayMan || result.luckyHint),
+    str(result.fun_line || result.funLine || result.cauHaiHuoc)
+  ].filter(Boolean);
 
   return parts.join(" ");
 }
 
 function normalizeHoroscopeResult(parsed, fallbackMood = "mysterious") {
   if (!parsed || typeof parsed !== "object") return null;
-  const text = toSingleText(parsed);
+  const verdictRaw = parsed.cau_chot_ha || parsed.cauChotHa || parsed.verdict;
+  const verdict = typeof verdictRaw === "string" ? cleanForTts(verdictRaw) : "";
+  let text = cleanForTts(toSingleText(parsed));
   if (!text) return null;
+  if (verdict && text && !text.startsWith(verdict)) {
+    text = `${verdict} ${text}`;
+  }
+
+  const moodRaw = String(parsed.tam_trang || parsed.tamTrang || parsed.mood || fallbackMood || "")
+    .trim()
+    .toLowerCase();
+  const mood = ["mysterious", "warning", "positive"].includes(moodRaw) ? moodRaw : fallbackMood;
 
   return {
-    hook: typeof (parsed.moDau || parsed.hook) === "string" ? (parsed.moDau || parsed.hook).trim() : "",
-    insight: typeof (parsed.phanTich || parsed.insight) === "string" ? (parsed.phanTich || parsed.insight).trim() : "",
-    warningOrOpportunity:
-      typeof (parsed.canhBaoHoacCoHoi || parsed.warningOrOpportunity) === "string"
-        ? (parsed.canhBaoHoacCoHoi || parsed.warningOrOpportunity).trim()
+    verdict,
+    hook:
+      typeof (parsed.hook || parsed.moDau) === "string" ? cleanForTts(parsed.hook || parsed.moDau) : "",
+    insight:
+      typeof (parsed.analysis || parsed.phanTich || parsed.insight) === "string"
+        ? cleanForTts(parsed.analysis || parsed.phanTich || parsed.insight)
         : "",
-    action: typeof (parsed.loiKhuyen || parsed.action) === "string" ? (parsed.loiKhuyen || parsed.action).trim() : "",
-    luckyHint: typeof (parsed.dauHieuMayMan || parsed.luckyHint) === "string" ? (parsed.dauHieuMayMan || parsed.luckyHint).trim() : "",
-    funnyLine: typeof (parsed.cauHaiHuoc || parsed.funnyLine) === "string" ? (parsed.cauHaiHuoc || parsed.funnyLine).trim() : "",
+    warningOrOpportunity:
+      typeof (parsed.warning_or_opportunity || parsed.warningOrOpportunity || parsed.canhBaoHoacCoHoi) === "string"
+        ? cleanForTts(
+            parsed.warning_or_opportunity || parsed.warningOrOpportunity || parsed.canhBaoHoacCoHoi
+          )
+        : "",
+    action:
+      typeof (parsed.advice || parsed.loiKhuyen || parsed.action) === "string"
+        ? cleanForTts(parsed.advice || parsed.loiKhuyen || parsed.action)
+        : "",
+    luckyHint:
+      typeof (parsed.lucky_sign || parsed.luckySign || parsed.dauHieuMayMan || parsed.luckyHint) === "string"
+        ? cleanForTts(parsed.lucky_sign || parsed.luckySign || parsed.dauHieuMayMan || parsed.luckyHint)
+        : "",
+    funnyLine:
+      typeof (parsed.fun_line || parsed.funLine || parsed.cauHaiHuoc || parsed.funnyLine) === "string"
+        ? cleanForTts(parsed.fun_line || parsed.funLine || parsed.cauHaiHuoc || parsed.funnyLine)
+        : "",
     text,
-    mood: parsed.tamTrang || parsed.mood || fallbackMood
+    mood
   };
 }
 
@@ -169,9 +266,10 @@ function fromParsedOrRaw(raw, fallbackMood = "mysterious") {
     return normalized;
   }
 
-  const rawText = typeof raw === "string" ? raw.trim() : "";
+  const rawText = typeof raw === "string" ? cleanForTts(raw) : "";
   if (rawText) {
     return {
+      verdict: "",
       hook: "",
       insight: "",
       warningOrOpportunity: "",
@@ -193,11 +291,11 @@ function buildOpenRouterPayload(input, model) {
       {
         role: "system",
         content:
-          "You must only return valid JSON, no markdown. All user-facing strings must be Vietnamese, Gen Z livestream host tone as in the user instructions."
+          "You are a behavioral-psychology-informed voice in TikTok Gen Z Vietnamese. Output valid JSON only, no markdown or code fences. All user-facing strings: Vietnamese, natural 1:1 tone, no emoji."
       },
       { role: "user", content: buildPrompt(input) }
     ],
-    temperature: 0.9
+    temperature: 1.0
   };
 }
 

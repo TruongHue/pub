@@ -1,23 +1,41 @@
-<section class="form-card">
+<section class="form-card" [class.form-operator-active]="operatorActive">
   <div class="title-row">
     <span class="title-bar"></span>
-    <h2>Xem van menh livestream</h2>
+    <h2>Xem vận mệnh livestream</h2>
   </div>
 
   <form class="form-stack" [formGroup]="form" (ngSubmit)="submit()">
     <div class="grid-two">
-      <label>
+      <label [class.operator-field-active]="operatorActive && operatorField === 'name'">
         <span>Your Name</span>
-        <input class="control" formControlName="name" placeholder="Enter full name" />
+        <input
+          class="control"
+          [class.control-operator-active]="operatorActive && operatorField === 'name'"
+          [class.control-operator-pulse]="operatorPulse && operatorField === 'name'"
+          formControlName="name"
+          placeholder="Enter full name"
+        />
       </label>
-      <label>
+      <label [class.operator-field-active]="operatorActive && operatorField === 'birthDate'">
         <span>Date Of Birth</span>
-        <input class="control" formControlName="birthDate" type="date" />
+        <input
+          class="control"
+          [class.control-operator-active]="operatorActive && operatorField === 'birthDate'"
+          [class.control-operator-pulse]="operatorPulse && operatorField === 'birthDate'"
+          formControlName="birthDate"
+          type="date"
+        />
       </label>
     </div>
-    <label>
+    <label [class.operator-field-active]="operatorActive && operatorField === 'question'">
       <span>Ask Oracle</span>
-      <textarea class="control control-textarea" formControlName="question" placeholder="Describe your current situation or ask about your destiny..."></textarea>
+      <textarea
+        class="control control-textarea"
+        [class.control-operator-active]="operatorActive && operatorField === 'question'"
+        [class.control-operator-pulse]="operatorPulse && operatorField === 'question'"
+        formControlName="question"
+        placeholder="Describe your current situation or ask about your destiny..."
+      ></textarea>
     </label>
     <input class="control control-time" formControlName="birthTime" type="time" />
 
@@ -39,11 +57,11 @@
 
     <div class="action-row">
       <button class="btn btn-primary" type="submit">
-        Xem van menh
+        Xem vận mệnh
       </button>
     </div>
     <button class="btn btn-secondary" type="button" (click)="askMore()">
-      Xem tiep van menh
+      Xem tiếp vận mệnh
     </button>
   </form>
 </section>

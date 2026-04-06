@@ -24,6 +24,7 @@ function buildSsml(text) {
 function buildExpressiveSsml(input) {
   const name = escapeSsml(input?.name || "");
   const mood = String(input?.mood || "mysterious").trim();
+  const verdict = String(input?.verdict || "").trim();
   const parts = {
     hook: String(input?.hook || "").trim(),
     insight: String(input?.insight || "").trim(),
@@ -54,6 +55,11 @@ function buildExpressiveSsml(input) {
   if (name) {
     blocks.push(`<prosody rate='-2%' pitch='+3%'><emphasis level='moderate'>${name}</emphasis>,</prosody>`);
   }
+  if (verdict) {
+    blocks.push(
+      `<break time='160ms'/><prosody rate='-8%' pitch='-2%'><emphasis level='strong'>${escapeSsml(verdict)}</emphasis></prosody>`
+    );
+  }
   if (parts.hook) {
     blocks.push(
       `<break time='120ms'/><prosody rate='${baseRate}' pitch='${basePitch}'><emphasis level='moderate'>${escapeSsml(parts.hook)}</emphasis></prosody>`
@@ -71,12 +77,12 @@ function buildExpressiveSsml(input) {
   }
   if (parts.action) {
     blocks.push(
-      `<break time='140ms'/><prosody rate='+1%' pitch='+2%'>Loi khuyen hanh dong: ${escapeSsml(parts.action)}</prosody>`
+      `<break time='140ms'/><prosody rate='+1%' pitch='+2%'>Lời khuyên hành động: ${escapeSsml(parts.action)}</prosody>`
     );
   }
   if (parts.luckyHint) {
     blocks.push(
-      `<break time='140ms'/><prosody rate='+4%' pitch='+8%'>Dau hieu may man: ${escapeSsml(parts.luckyHint)}</prosody>`
+      `<break time='140ms'/><prosody rate='+4%' pitch='+8%'>Dấu hiệu may mắn: ${escapeSsml(parts.luckyHint)}</prosody>`
     );
   }
   if (parts.funnyLine) {

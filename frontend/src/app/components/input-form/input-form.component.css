@@ -1,9 +1,18 @@
 .form-card {
-  border: 1px solid rgba(171, 122, 248, 0.22);
+  border: 1px solid rgba(34, 245, 226, 0.2);
   border-radius: 1.5rem;
-  background: linear-gradient(180deg, rgba(43, 24, 70, 0.9), rgba(28, 16, 47, 0.92));
+  background: linear-gradient(188deg, rgba(18, 32, 52, 0.92), rgba(28, 10, 42, 0.9));
   padding: 1.35rem 1.15rem;
-  box-shadow: 0 15px 30px rgba(6, 4, 13, 0.35), 0 0 30px rgba(101, 48, 173, 0.15);
+  box-shadow:
+    0 18px 36px rgba(0, 0, 0, 0.38),
+    0 0 40px rgba(34, 245, 226, 0.06);
+}
+
+.form-card.form-operator-active {
+  border-color: rgba(255, 45, 146, 0.55);
+  box-shadow:
+    0 20px 40px rgba(0, 0, 0, 0.42),
+    0 0 38px rgba(255, 45, 146, 0.18);
 }
 
 .title-row {
@@ -16,15 +25,16 @@
   width: 7px;
   height: 34px;
   border-radius: 999px;
-  background: linear-gradient(180deg, #d48dff, #8c51ff);
+  background: linear-gradient(180deg, #ff2d92, #ffcc00, #22f5e2);
 }
 
 .form-card h2 {
   margin: 0;
-  color: #f7ecff;
+  color: #fef3c7;
   font-size: 2.15rem;
   line-height: 1;
   font-weight: 800;
+  text-shadow: 0 0 24px rgba(255, 204, 0, 0.2);
 }
 
 .form-stack {
@@ -41,6 +51,10 @@ label span {
   letter-spacing: 0.11em;
   font-size: 0.66rem;
   margin-bottom: 0.35rem;
+}
+
+label.operator-field-active span {
+  color: #f4dcff;
 }
 
 .grid-two {
@@ -62,6 +76,15 @@ label span {
 
 .control:focus {
   border-color: rgba(206, 159, 255, 0.8);
+}
+
+.control-operator-active {
+  border-color: rgba(210, 170, 255, 0.9);
+  box-shadow: 0 0 0 1px rgba(206, 159, 255, 0.3), 0 0 22px rgba(168, 85, 247, 0.28);
+}
+
+.control-operator-pulse {
+  animation: operator-key-pulse 120ms ease-out;
 }
 
 .control-textarea {
@@ -110,16 +133,16 @@ label span {
 
 .btn-primary {
   flex: 1;
-  color: #fef7ff;
+  color: #0c0618;
   font-weight: 700;
-  background: linear-gradient(90deg, #c782ff, #9454ff);
-  box-shadow: 0 8px 20px rgba(128, 79, 214, 0.35);
+  background: linear-gradient(95deg, #ff2d92 0%, #ff6b2c 40%, #ffcc00 100%);
+  box-shadow: 0 8px 24px rgba(255, 45, 146, 0.4);
 }
 
 .btn-secondary {
-  color: #e8d8ff;
-  border-color: rgba(186, 132, 255, 0.25);
-  background: rgba(48, 30, 78, 0.86);
+  color: #a5f3fc;
+  border-color: rgba(34, 245, 226, 0.35);
+  background: rgba(12, 28, 42, 0.88);
   font-size: 0.8rem;
   letter-spacing: 0.08em;
 }
@@ -127,5 +150,20 @@ label span {
 @media (max-width: 500px) {
   .grid-two {
     grid-template-columns: 1fr;
+  }
+}
+
+@keyframes operator-key-pulse {
+  0% {
+    transform: translateY(0);
+    filter: brightness(1);
+  }
+  50% {
+    transform: translateY(1px);
+    filter: brightness(1.2);
+  }
+  100% {
+    transform: translateY(0);
+    filter: brightness(1);
   }
 }

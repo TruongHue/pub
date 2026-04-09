@@ -1,6 +1,6 @@
 import { Injectable, signal } from '@angular/core';
 import { io, Socket } from 'socket.io-client';
-import { backendBaseUrl } from '../utils/backend-base-url';
+import { MAIN_BACKEND_BASE } from '../config/backend-target';
 
 export type Mood = 'mysterious' | 'warning' | 'positive';
 
@@ -35,7 +35,8 @@ export class AstrologyService {
   readonly latestResult = signal<HoroscopeResult | null>(null);
 
   constructor() {
-    this.socket = io(backendBaseUrl(3000), { transports: ['websocket'] });
+    // BE chính: gọi Render thẳng (tránh xung đột local port)
+    this.socket = io(MAIN_BACKEND_BASE, { transports: ['websocket'] });
     this.registerSocketEvents();
   }
 

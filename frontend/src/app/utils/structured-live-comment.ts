@@ -1,9 +1,12 @@
 /**
- * Parse live comments that use:
- *   "Họ tên": ...
- *   "Ngày sinh": ...
- *   "Câu hỏi": ...
- * Supports multiple lines or a single line separated by commas.
+ * Parse live comments — ưu tiên định dạng gọn, một dòng:
+ *   <họ tên> <ngày sinh> <câu hỏi>
+ * Ngày sinh nhận dạng: 15/08/1999, 2001-03-22, … (dùng `normalizeVietnameseBirthDate`).
+ * Phần trước ngày đầu tiên = họ tên, phần sau = câu hỏi.
+ *
+ * Giữ fallback parser cũ (Họ tên: / Ngày sinh: / Câu hỏi:) cho dữ liệu lịch sử.
+ *
+ * Khuyến nghị thêm `@` ở đầu (TikTok hay lọc/ẩn bình luận) — parser sẽ bỏ `@` đầu dòng.
  */
 
 export interface StructuredLiveFields {
@@ -65,6 +68,11 @@ export function normalizeVietnameseBirthDate(raw: string): string | null {
   return null;
 }
 
+/** Bỏ @ đầu dòng (TikTok / live) trước khi parse. */
+function stripLeadingAtPrefix(raw: string): string {
+  return raw.trim().replace(/^@+\s*/, '');
+}
+
 function completeFields(partial: Partial<Record<'name' | 'birthDate' | 'question', string>>): StructuredLiveFields | null {
   const name = partial.name?.trim();
   const birthDate = partial.birthDate?.trim();
@@ -79,6 +87,37 @@ function completeFields(partial: Partial<Record<'name' | 'birthDate' | 'question
     question,
     birthDateInput
   };
+}
+
+/** Tìm chuỗi ngày đầu tiên trong text mà normalize được thành YYYY-MM-DD. */
+function findFirstParsableBirthSpan(raw: string): { index: number; length: number; raw: string } | null {
+  const patterns = [/\d{4}[/.-]\d{1,2}[/.-]\d{1,2}/g, /\d{1,2}[/.-]\d{1,2}[/.-]\d{4}/g];
+  const hits: { index: number; length: number; raw: string }[] = [];
+  for (const re of patterns) {
+    const copy = new RegExp(re.source, 'g');
+    let m: RegExpExecArray | null;
+    while ((m = copy.exec(raw)) !== null) {
+      const candidate = m[0];
+      if (normalizeVietnameseBirthDate(candidate)) {
+        hits.push({ index: m.index, length: candidate.length, raw: candidate });
+      }
+    }
+  }
+  if (!hits.length) return null;
+  hits.sort((a, b) => a.index - b.index);
+  return hits[0];
+}
+
+/** Một dòng: họ tên · ngày sinh · câu hỏi (không cần nhãn). */
+function parseCompactLine(raw: string): StructuredLiveFields | null {
+  const text = raw.trim();
+  if (!text) return null;
+  const hit = findFirstParsableBirthSpan(text);
+  if (!hit) return null;
+  const name = text.slice(0, hit.index).trim();
+  const birthDate = hit.raw.trim();
+  const question = text.slice(hit.index + hit.length).trim();
+  return completeFields({ name, birthDate, question });
 }
 
 function parseLineBased(raw: string): StructuredLiveFields | null {
@@ -124,8 +163,9 @@ function parseInline(raw: string): StructuredLiveFields | null {
 
 export function parseStructuredLiveComment(raw: string): StructuredLiveFields | null {
   if (!raw?.trim()) return null;
-  const trimmed = raw.trim();
-  return parseLineBased(trimmed) ?? parseInline(trimmed);
+  const trimmed = stripLeadingAtPrefix(raw);
+  if (!trimmed) return null;
+  return parseCompactLine(trimmed) ?? parseLineBased(trimmed) ?? parseInline(trimmed);
 }
 
 /** Chuẩn hóa câu hỏi để so sánh trùng (spam / lặp). */

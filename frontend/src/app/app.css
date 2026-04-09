@@ -2,6 +2,12 @@
   display: block;
 }
 
+app-root,
+app-live-page,
+app-landing-page {
+  display: block;
+}
+
 .page-shell {
   --live-hot: #ff2d92;
   --live-cyan: #22f5e2;
@@ -21,6 +27,40 @@
     radial-gradient(ellipse 60% 40% at 50% 100%, rgba(255, 107, 44, 0.12), transparent 50%),
     radial-gradient(circle at 48% 38%, rgba(192, 132, 252, 0.08), transparent 55%),
     linear-gradient(168deg, #1a0a2e 0%, #0d0618 38%, #05030c 100%);
+}
+
+.live-topbar-actions {
+  position: relative;
+  z-index: 9;
+  display: flex;
+  gap: 0.6rem;
+  align-items: center;
+  padding: 0.6rem 1.1rem 0;
+}
+
+.mode-pill {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 999px;
+  padding: 0.28rem 0.6rem;
+  font-size: 0.74rem;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.mode-pill--fake {
+  border-color: rgba(34, 245, 226, 0.28);
+  background: rgba(34, 245, 226, 0.08);
+  color: #a5f3fc;
+}
+
+.mode-pill--real {
+  border-color: rgba(255, 45, 146, 0.34);
+  background: rgba(255, 45, 146, 0.12);
+  color: #fda4af;
 }
 
 .page-shell::before,
@@ -495,6 +535,218 @@
   color: #e9d5ff;
   font-size: clamp(0.96rem, 1.6vw, 1.08rem);
   line-height: 1.58;
+}
+
+/* Landing (cửa vào trước trang live) */
+.landing-shell {
+  position: relative;
+  z-index: 1;
+  min-height: calc(100vh - 68px);
+  display: grid;
+  place-items: center;
+  padding: 1.1rem;
+}
+
+.landing-card {
+  width: min(920px, 100%);
+  border-radius: 1.6rem;
+  padding: clamp(1.1rem, 2.2vw, 1.65rem);
+  border: 1px solid rgba(255, 45, 146, 0.24);
+  background:
+    radial-gradient(ellipse 70% 90% at 12% 0%, rgba(255, 45, 146, 0.18), transparent 55%),
+    radial-gradient(ellipse 70% 80% at 98% 10%, rgba(34, 245, 226, 0.14), transparent 52%),
+    radial-gradient(circle at 55% 120%, rgba(255, 204, 0, 0.08), transparent 55%),
+    linear-gradient(165deg, rgba(32, 8, 48, 0.92), rgba(10, 6, 24, 0.88));
+  backdrop-filter: blur(10px);
+  box-shadow:
+    0 26px 72px rgba(0, 0, 0, 0.5),
+    0 0 50px rgba(255, 45, 146, 0.08),
+    0 0 40px rgba(34, 245, 226, 0.06),
+    inset 0 1px 0 rgba(255, 255, 255, 0.06);
+}
+
+.landing-badge-row {
+  display: flex;
+  gap: 0.55rem;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.landing-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  border-radius: 999px;
+  padding: 0.35rem 0.65rem;
+  font-size: 0.74rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  border: 1px solid rgba(255, 204, 0, 0.32);
+  background: rgba(255, 204, 0, 0.08);
+  color: #fef3c7;
+}
+
+.landing-badge--subtle {
+  border-color: rgba(34, 245, 226, 0.24);
+  background: rgba(34, 245, 226, 0.07);
+  color: rgba(233, 213, 255, 0.92);
+}
+
+.landing-kicker {
+  margin: 0.9rem 0 0.55rem;
+  color: #fbbf24;
+  font-size: 0.72rem;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  text-shadow: 0 0 18px rgba(251, 191, 36, 0.35);
+}
+
+.landing-title {
+  margin: 0;
+  background: linear-gradient(95deg, #fff 0%, #fda4af 28%, #c4b5fd 55%, #67e8f9 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  font-size: clamp(2.1rem, 4.6vw, 3.2rem);
+  font-weight: 900;
+  line-height: 1.05;
+  filter: drop-shadow(0 0 28px rgba(255, 45, 146, 0.22));
+}
+
+.landing-sub {
+  margin: 0.75rem 0 1.15rem;
+  color: rgba(233, 213, 255, 0.92);
+  font-size: 1.05rem;
+  line-height: 1.6;
+  max-width: 72ch;
+}
+
+.landing-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.85rem;
+}
+
+.mode-tile {
+  appearance: none;
+  border: 1px solid rgba(196, 181, 253, 0.24);
+  background: linear-gradient(155deg, rgba(16, 10, 34, 0.86), rgba(38, 14, 52, 0.84));
+  color: inherit;
+  border-radius: 1.25rem;
+  padding: 0.95rem 1rem;
+  cursor: pointer;
+  text-align: left;
+  display: grid;
+  grid-template-columns: 52px 1fr;
+  gap: 0.9rem;
+  transition: transform 140ms ease, border-color 140ms ease, box-shadow 140ms ease, filter 140ms ease;
+  box-shadow: 0 18px 44px rgba(0, 0, 0, 0.35);
+}
+
+.mode-tile:hover {
+  transform: translateY(-2px);
+  border-color: rgba(34, 245, 226, 0.38);
+  box-shadow: 0 22px 56px rgba(0, 0, 0, 0.42), 0 0 36px rgba(34, 245, 226, 0.08);
+}
+
+.mode-tile:active {
+  transform: translateY(0);
+}
+
+.mode-tile--hot {
+  border-color: rgba(255, 45, 146, 0.28);
+  background:
+    radial-gradient(circle at 10% 15%, rgba(255, 45, 146, 0.18), transparent 52%),
+    linear-gradient(155deg, rgba(18, 10, 38, 0.86), rgba(42, 10, 48, 0.86));
+}
+
+.mode-tile__icon {
+  width: 52px;
+  height: 52px;
+  border-radius: 1rem;
+  display: grid;
+  place-items: center;
+  font-size: 1.4rem;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.18);
+}
+
+.mode-tile__top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.6rem;
+}
+
+.mode-tile__title {
+  margin: 0;
+  font-size: 1.12rem;
+  font-weight: 850;
+  color: #fef3c7;
+}
+
+.mode-tile__tag {
+  border-radius: 999px;
+  padding: 0.28rem 0.55rem;
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.06);
+  color: rgba(233, 213, 255, 0.92);
+  white-space: nowrap;
+}
+
+.mode-tile__tag--safe {
+  border-color: rgba(34, 245, 226, 0.25);
+  background: rgba(34, 245, 226, 0.08);
+  color: #a5f3fc;
+}
+
+.mode-tile__tag--live {
+  border-color: rgba(255, 45, 146, 0.35);
+  background: rgba(255, 45, 146, 0.12);
+  color: #fda4af;
+}
+
+.mode-tile__desc {
+  margin: 0.55rem 0 0;
+  color: rgba(233, 213, 255, 0.88);
+  line-height: 1.55;
+  font-size: 0.95rem;
+}
+
+.landing-note {
+  margin: 1rem 0 0;
+  color: rgba(233, 213, 255, 0.8);
+  font-size: 0.92rem;
+  line-height: 1.5;
+}
+
+.landing-note code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 0.92em;
+  color: #a5f3fc;
+  background: rgba(0, 0, 0, 0.36);
+  padding: 0.12rem 0.35rem;
+  border-radius: 0.35rem;
+}
+
+@media (max-width: 780px) {
+  .landing-grid {
+    grid-template-columns: 1fr;
+  }
+  .mode-tile {
+    grid-template-columns: 48px 1fr;
+  }
+  .mode-tile__icon {
+    width: 48px;
+    height: 48px;
+    border-radius: 0.95rem;
+  }
 }
 
 .oracle-queue-card {

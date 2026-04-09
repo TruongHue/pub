@@ -14,34 +14,43 @@
     </div>
   </header>
 
+  <div class="live-topbar-actions">
+    <button type="button" class="voice-test-btn" (click)="goBackHome()">← Quay về</button>
+    @if (liveEntryMode() === 'fake') {
+      <span class="mode-pill mode-pill--fake">Demo</span>
+    } @else {
+      <span class="mode-pill mode-pill--real">Live</span>
+    }
+  </div>
+
   @if (loading()) {
-    <div class="oracle-answer-overlay" role="status" aria-live="polite" aria-busy="true">
-      <div class="oracle-answer-overlay__card">
-        <div class="oracle-answer-overlay__glow" aria-hidden="true"></div>
-        <div class="oracle-answer-overlay__scan" aria-hidden="true"></div>
-        <div class="oracle-answer-overlay__row">
-          <div class="oracle-answer-overlay__rings" aria-hidden="true">
-            <span class="oracle-answer-overlay__ring"></span>
-            <span class="oracle-answer-overlay__ring oracle-answer-overlay__ring--delay"></span>
-          </div>
-          <div class="oracle-answer-overlay__copy">
-            <span class="oracle-answer-overlay__eyebrow">Đang xử lý</span>
-            <span class="oracle-answer-overlay__title">
-              Oracle đang soạn câu trả lời cho bạn
-              <span class="oracle-answer-overlay__ellipsis" aria-hidden="true">
-                <span>.</span><span>.</span><span>.</span>
+      <div class="oracle-answer-overlay" role="status" aria-live="polite" aria-busy="true">
+        <div class="oracle-answer-overlay__card">
+          <div class="oracle-answer-overlay__glow" aria-hidden="true"></div>
+          <div class="oracle-answer-overlay__scan" aria-hidden="true"></div>
+          <div class="oracle-answer-overlay__row">
+            <div class="oracle-answer-overlay__rings" aria-hidden="true">
+              <span class="oracle-answer-overlay__ring"></span>
+              <span class="oracle-answer-overlay__ring oracle-answer-overlay__ring--delay"></span>
+            </div>
+            <div class="oracle-answer-overlay__copy">
+              <span class="oracle-answer-overlay__eyebrow">Đang xử lý</span>
+              <span class="oracle-answer-overlay__title">
+                Oracle đang soạn câu trả lời cho bạn
+                <span class="oracle-answer-overlay__ellipsis" aria-hidden="true">
+                  <span>.</span><span>.</span><span>.</span>
+                </span>
               </span>
-            </span>
+            </div>
           </div>
+          <div class="oracle-answer-overlay__track" aria-hidden="true">
+            <div class="oracle-answer-overlay__track-fill"></div>
+          </div>
+          <p class="oracle-answer-overlay__hint">
+            Vũ trụ đang đọc câu hỏi, ghép bài giải và chuẩn bị giọng đọc — chờ thêm một chút nhé.
+          </p>
         </div>
-        <div class="oracle-answer-overlay__track" aria-hidden="true">
-          <div class="oracle-answer-overlay__track-fill"></div>
-        </div>
-        <p class="oracle-answer-overlay__hint">
-          Vũ trụ đang đọc câu hỏi, ghép bài giải và chuẩn bị giọng đọc — chờ thêm một chút nhé.
-        </p>
       </div>
-    </div>
   }
 
   <div class="layout-grid">
@@ -61,7 +70,7 @@
             <span class="oracle-queue-count">{{ oracleQueueSize() }}</span>
           </div>
           <p class="oracle-queue-sub">
-            Xử lý tuần tự: #1 là người sắp được xem. Thêm bình luận đúng cú pháp Họ tên / Ngày sinh / Câu hỏi.
+            Xử lý tuần tự: #1 là người sắp được xem. Một dòng: họ tên, ngày sinh, câu hỏi — nên thêm @ ở đầu (TikTok hay lọc bình luận).
           </p>
           @if (loading() && expectQueueCompletion()) {
             <p class="oracle-queue-active">Đang trả lời một người trong hàng chờ…</p>
@@ -149,7 +158,6 @@
       <section class="compact-controls">
         <div class="status-chip controls-card bgm-card">
           <span class="bgm-card-title">Nhạc nền</span>
-          <p class="bgm-card-hint">Dán link YouTube — chỉ phát âm thanh, không hiện video.</p>
           <div class="voice-row">
             <input
               class="voice-select bgm-link-input"
@@ -160,6 +168,9 @@
             />
             <button class="voice-test-btn" type="button" (click)="applyBgmLink()">Bật nhạc</button>
             <button class="voice-test-btn" type="button" [disabled]="!bgmEmbedUrl()" (click)="stopBgm()">Tắt</button>
+            <button class="voice-test-btn" type="button" (click)="togglePlaybackPause()">
+              @if (playbackPaused()) { Tiếp tục đọc } @else { Tạm dừng đọc }
+            </button>
           </div>
           @if (bgmError()) {
             <p class="bgm-error">{{ bgmError() }}</p>
@@ -213,33 +224,39 @@
       <span class="syntax-guide-badge">Live</span>
       <h3 class="syntax-guide-title">Cú pháp vào hàng</h3>
     </header>
-    <p class="syntax-guide-lead">Đủ 3 dòng → vào hàng chờ.</p>
+    <p class="syntax-guide-lead">Một dòng đủ 3 phần → vào hàng chờ.</p>
     <div class="syntax-guide-table-wrap">
       <table class="syntax-guide-table">
         <thead>
           <tr>
-            <th scope="col">Ghi</th>
-            <th scope="col">Ví dụ</th>
+            <th scope="col">Gợi ý</th>
+            <th scope="col">Chi tiết</th>
           </tr>
         </thead>
         <tbody>
           <tr>
-            <td>Họ tên:</td>
-            <td>Nguyễn Văn A</td>
+            <td>TikTok / live</td>
+            <td>
+              Nên thêm <code>@</code> ở đầu bình luận — nền tảng hay lọc hoặc ẩn nội dung không có ký hiệu này.
+            </td>
           </tr>
           <tr>
-            <td>Ngày sinh:</td>
-            <td>15/03/1995</td>
+            <td>Nội dung</td>
+            <td>
+              Họ tên, ngày sinh (<code>15/03/1995</code> hoặc <code>1995-03-15</code>), rồi câu hỏi — cách nhau bằng khoảng trắng. Ngày sinh là mốc tách: trước ngày là tên, sau ngày là câu hỏi.
+            </td>
           </tr>
           <tr>
-            <td>Câu hỏi:</td>
-            <td>Tháng này có nên đổi người yêu?</td>
+            <td>Ví dụ</td>
+            <td>
+              <code>@Nguyễn Văn A 15/03/1995 Tháng này có nên đổi người yêu?</code>
+            </td>
           </tr>
         </tbody>
       </table>
     </div>
     <p class="syntax-guide-foot">
-      <strong>1 dòng:</strong> <code>Họ tên: A, Ngày sinh: 1/1/2000, Câu hỏi: …</code>
+      Hệ thống tự bỏ <code>@</code> ở đầu khi đọc cú pháp.
     </p>
   </aside>
 

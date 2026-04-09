@@ -1,5 +1,6 @@
-import { Component, NgZone, OnDestroy, effect, inject, signal } from '@angular/core';
+import { Component, NgZone, OnDestroy, OnInit, effect, inject, signal } from '@angular/core';
 import { DomSanitizer, SafeResourceUrl } from '@angular/platform-browser';
+import { ActivatedRoute, Router } from '@angular/router';
 import { io, Socket } from 'socket.io-client';
 import { InputFormComponent } from './components/input-form/input-form.component';
 import { AvatarComponent } from './components/avatar/avatar.component';
@@ -13,6 +14,7 @@ import {
   StructuredLiveFields
 } from './utils/structured-live-comment';
 import { backendBaseUrl } from './utils/backend-base-url';
+import { LIVE_COMMENTS_BASE } from './config/backend-target';
 
 interface LiveQueueItem {
   id?: string;
@@ -51,13 +53,15 @@ interface TtsChunkPlan {
 }
 
 @Component({
-  selector: 'app-root',
+  selector: 'app-live-page',
   imports: [InputFormComponent, AvatarComponent, ChatComponent],
   templateUrl: './app.html',
-  styleUrl: './app.css'
+  // styles đã được import global qua `src/styles.css`
 })
-export class App implements OnDestroy {
-  private readonly liveApiUrl = backendBaseUrl(3001);
+export class LivePageComponent implements OnInit, OnDestroy {
+  // Live comments: dùng local và né cổng 3001 (project khác đang chạy) -> chuyển 3002.
+  private readonly liveApiUrl = LIVE_COMMENTS_BASE;
+  // private readonly liveApiUrl = backendBaseUrl(3001);
   private readonly liveSocket: Socket;
   private liveSessionId: string = crypto.randomUUID();
   private readonly liveSeenCommentIds = new Set<string>();
@@ -82,14 +86,20 @@ export class App implements OnDestroy {
   /** Câu hỏi (và tên) khớp với lượt xem đang hiển thị trong popup. */
   readonly resultPopupUserQuestion = signal('');
   readonly resultPopupUserName = signal('');
+  /** Chế độ vào live: fake = chỉ comment giả, real = live + queue + backend. */
+  readonly liveEntryMode = signal<'fake' | 'real'>('real');
   private queueTurnNeedsPlaybackGate = false;
   private queueAfterReadTimer: ReturnType<typeof setTimeout> | null = null;
   private readonly astrologyService = inject(AstrologyService);
   private readonly sanitizer = inject(DomSanitizer);
+  private readonly router = inject(Router);
+  private readonly route = inject(ActivatedRoute);
   readonly loading = this.astrologyService.loading;
   readonly latestResult = this.astrologyService.latestResult;
   readonly errorMessage = this.astrologyService.errorMessage;
   readonly isSpeaking = signal(false);
+  /** Pause toàn hệ thống: ngưng đọc + không drain sang lượt kế tiếp. */
+  readonly playbackPaused = signal(false);
   readonly autoFillName = signal('');
   readonly autoFillBirthDate = signal('');
   readonly autoFillQuestion = signal('');
@@ -103,6 +113,7 @@ export class App implements OnDestroy {
   private lastPayload: HoroscopePayload | null = null;
   private utterance: SpeechSynthesisUtterance | null = null;
   private activeAudio: HTMLAudioElement | null = null;
+  private pendingPlayback: { audioUrl: string | null | undefined; text: string } | null = null;
   private vietnameseVoice: SpeechSynthesisVoice | null = null;
   private readonly ngZone = inject(NgZone);
   /** Chuỗi đang / vừa đọc TTS (khớp `latestResult().text`) — dùng map highlight theo từng mục. */
@@ -134,13 +145,23 @@ export class App implements OnDestroy {
     this.refreshVoiceOptions();
   };
   private readonly fakeComments = [
-    'Họ tên: Minh An\nNgày sinh: 15/08/1999\nCâu hỏi: Tuần này tình cảm của mình thế nào?',
-    'Họ tên: Gia Bảo\nNgày sinh: 2001-03-22\nCâu hỏi: Có nên đổi người yêu này không?',
-    'Họ tên: Thu Hà\nNgày sinh: 07/12/1995\nCâu hỏi: Người cũ có quay lại không?',
-    'Họ tên: Quốc Huy\nNgày sinh: 01/01/2000\nCâu hỏi: 6 tháng tới mình cần tránh điều gì?',
-    'Họ tên: Lan Chi\nNgày sinh: 28/02/1998\nCâu hỏi: Cơ hội công việc đang đến không?',
-    'Họ tên: Đức Anh\nNgày sinh: 11/11/1997\nCâu hỏi: Hôm nay vận may tài lộc ra sao?',
-    'Họ tên: Ngọc Trâm\nNgày sinh: 03/09/2002\nCâu hỏi: Nên đầu tư hay giữ tiền lúc này?'
+    '@Minh An 15/08/1999 Tuần này tình cảm của mình thế nào?',
+    '@Gia Bảo 2001-03-22 Có nên đổi người yêu này không?',
+    'Thu Hà 07/12/1995 Người cũ có quay lại không?',
+    '@Quốc Huy 01/01/2000 6 tháng tới mình cần tránh điều gì?',
+    'Lan Chi 28/02/1998 Cơ hội công việc đang đến không?',
+    '@Đức Anh 11/11/1997 Hôm nay vận may tài lộc ra sao?',
+    'Ngọc Trâm 03/09/2002 Nên đầu tư hay giữ tiền lúc này?',
+    '@Bảo Nam 1999-10-05 Mình có đang yêu sai người không?',
+    '@Lan Chi 2002-02-19 Người này có thực sự hiểu mình không?',
+    '@Anh Tú 2000-06-30 Có người thứ 3 xen vào không?',
+    '@Diễm My 2001-04-11 Người này có đang lợi dụng mình không?',
+    '@Quang Huy 1997-12-25 Tình cảm này có đi đến lâu dài được không?',
+    '@Thảo Vy 2003-09-08 Người này là định mệnh hay chỉ là thoáng qua?',
+    '@Hoàng Long 1998-01-17 Có nên quay lại với người cũ không?',
+    '@Ngọc Hân 2002-05-29 Người này có đang giấu mình điều gì không?',
+    '@Khánh Linh 2001-08-21 Người này có đang nhớ đến mình không?',
+    '@Đức Phúc 1998-03-03 Tương lai của hai đứa sẽ ra sao?'
   ];
 
   constructor() {
@@ -158,7 +179,13 @@ export class App implements OnDestroy {
         this.resultPopupOpen.set(false);
         this.scrollReadingToTop();
         // Kết quả chỉ hiển thị trong popup giữa màn hình — không đẩy vào luồng chat như comment.
-        this.playAudioOrSpeak(result.audioUrl, result.ttsText || result.text);
+        const tts = result.ttsText || result.text;
+        if (this.playbackPaused()) {
+          this.pendingPlayback = { audioUrl: result.audioUrl, text: tts };
+          console.info('[AKOOL TTS] playback paused: queued pending playback');
+          return;
+        }
+        this.playAudioOrSpeak(result.audioUrl, tts);
       }
     });
     effect(() => {
@@ -177,7 +204,8 @@ export class App implements OnDestroy {
         if (
           this.oracleQueueSize() > 0 &&
           !this.expectQueueCompletion() &&
-          !this.awaitingQueueReadingPlayback()
+          !this.awaitingQueueReadingPlayback() &&
+          !this.playbackPaused()
         ) {
           this.scheduleQueueDrain(0);
         }
@@ -191,7 +219,7 @@ export class App implements OnDestroy {
           this.queueTurnNeedsPlaybackGate = false;
           this.clearQueueAfterReadingPause();
           this.awaitingQueueReadingPlayback.set(false);
-          if (this.oracleQueueSize() > 0) {
+          if (this.oracleQueueSize() > 0 && !this.playbackPaused()) {
             this.scheduleQueueDrain(600);
           }
         }
@@ -199,11 +227,23 @@ export class App implements OnDestroy {
         return;
       }
 
-      if (this.oracleQueueSize() > 0 && !this.awaitingQueueReadingPlayback()) {
+      if (this.oracleQueueSize() > 0 && !this.awaitingQueueReadingPlayback() && !this.playbackPaused()) {
         this.scheduleQueueDrain(400);
       }
     });
     this.loadSyntaxGuideLayout();
+  }
+
+  ngOnInit(): void {
+    this.route.queryParamMap.subscribe((params) => {
+      const mode = (params.get('mode') || '').toLowerCase();
+      this.liveEntryMode.set(mode === 'fake' ? 'fake' : 'real');
+    });
+  }
+
+  goBackHome(): void {
+    this.pausePlayback();
+    this.router.navigateByUrl('/');
   }
 
   private readonly queueReadingCooldownMs = 5_000;
@@ -220,6 +260,10 @@ export class App implements OnDestroy {
     this.clearQueueAfterReadingPause();
     this.queueAfterReadTimer = window.setTimeout(() => {
       this.queueAfterReadTimer = null;
+      if (this.playbackPaused()) {
+        // Đang pause: giữ cờ gate lại, đợi resume mới tiếp tục drain.
+        return;
+      }
       this.awaitingQueueReadingPlayback.set(false);
       this.tryDrainOracleQueue();
     }, this.queueReadingCooldownMs);
@@ -326,6 +370,11 @@ export class App implements OnDestroy {
   }
 
   private playAudioOrSpeak(audioUrl: string | null | undefined, text: string): void {
+    if (this.playbackPaused()) {
+      this.pendingPlayback = { audioUrl, text };
+      console.info('[AKOOL TTS] playAudioOrSpeak skipped (paused): queued pending playback');
+      return;
+    }
     const t = text?.trim() || '';
     if (!audioUrl && !t) {
       this.onHoroscopePlaybackFullyEnded();
@@ -361,7 +410,14 @@ export class App implements OnDestroy {
       audio.onplay = () => {
         started = true;
         clearTimeout(fallbackTimer);
-        this.isSpeaking.set(true);
+        this.isSpeaking.set(!this.playbackPaused());
+        if (this.playbackPaused()) {
+          try {
+            audio.pause();
+          } catch {
+            // noop
+          }
+        }
       };
       audio.onended = () => {
         clearTimeout(fallbackTimer);
@@ -394,6 +450,15 @@ export class App implements OnDestroy {
       return;
     }
     this.lastPayload = payload;
+    // Nếu đang ở fake mode, không cho backend/queue chạy để tránh tốn token.
+    if (this.liveEntryMode() === 'fake') {
+      this.appendMessage({
+        author: payload.name,
+        text: `${payload.question} (demo fake — chưa gửi Oracle thật)`,
+        type: 'user'
+      });
+      return;
+    }
     this.appendMessage({ author: payload.name, text: payload.question, type: 'user' });
     const item = this.buildQueueItemFromForm(payload);
     this.offerOracleQueue(item, { skipReasonableCheck: true });
@@ -428,7 +493,7 @@ export class App implements OnDestroy {
     return {
       id: crypto.randomUUID(),
       username: 'You',
-      comment: `Họ tên: ${parsed.name}\nNgày sinh: ${parsed.birthDate}\nCâu hỏi: ${parsed.question}`,
+      comment: `${parsed.name} ${parsed.birthDate} ${parsed.question}`,
       parsed
     };
   }
@@ -560,6 +625,7 @@ export class App implements OnDestroy {
 
   private scheduleQueueDrain(delayMs: number): void {
     this.clearQueueDrainTimer();
+    if (this.playbackPaused()) return;
     this.queueDrainTimer = window.setTimeout(() => {
       this.queueDrainTimer = null;
       this.tryDrainOracleQueue();
@@ -567,6 +633,7 @@ export class App implements OnDestroy {
   }
 
   private offerOracleQueue(item: LiveQueueItem, opts?: { skipReasonableCheck?: boolean }): void {
+    if (this.liveEntryMode() !== 'real') return;
     if (!item.parsed) return;
     if (!opts?.skipReasonableCheck && !isReasonableOracleQuestion(item.parsed)) return;
     if (this.isCurrentlyDuplicateOracleQuestion(item, item.parsed)) return;
@@ -627,6 +694,7 @@ export class App implements OnDestroy {
   }
 
   private tryDrainOracleQueue(): void {
+    if (this.playbackPaused()) return;
     if (this.astrologyService.loading()) return;
     if (this.expectQueueCompletion()) return;
     if (this.awaitingQueueReadingPlayback()) return;
@@ -653,7 +721,11 @@ export class App implements OnDestroy {
       type: 'live'
     });
 
-    this.queueTurnNeedsPlaybackGate = true;
+    // Quan trọng: khoá hàng chờ ngay từ lúc bắt đầu lượt này để
+    // chắc chắn không thể chuyển sang người khác trước khi TTS/audio đọc xong.
+    // Flag này sẽ được gỡ trong `onOracleReadingPlaybackEnded()` hoặc nhánh lỗi.
+    this.awaitingQueueReadingPlayback.set(true);
+    this.queueTurnNeedsPlaybackGate = false;
     this.expectQueueCompletion.set(true);
     this.triggerViewerReading(next, true);
   }
@@ -883,7 +955,7 @@ export class App implements OnDestroy {
     this.liveFallbackTimer = setInterval(() => {
       const randomLine = this.fakeComments[Math.floor(Math.random() * this.fakeComments.length)];
       const parsed = parseStructuredLiveComment(randomLine);
-      if (parsed) {
+      if (parsed && this.liveEntryMode() === 'real') {
         const item: LiveQueueItem = { username: 'Viewer', comment: randomLine, parsed };
         this.offerOracleQueue(item);
       }
@@ -940,6 +1012,18 @@ export class App implements OnDestroy {
       message.rate = plan.rate;
       message.pitch = plan.pitch;
       message.volume = 1;
+      if (chunkIndex === 0) {
+        const v = message.voice;
+        console.info('[AKOOL TTS] speak() bắt đầu (chunk 0)', {
+          voiceObject: v
+            ? { name: v.name, lang: v.lang, localService: v.localService, voiceURI: v.voiceURI }
+            : null,
+          voiceIsNull: !v,
+          utteranceLang: message.lang,
+          preset: this.selectedVoicePreset(),
+          selectedVoiceId: this.selectedVoiceId()
+        });
+      }
 
       message.onstart = () => {
         this.ngZone.run(() => {
@@ -1205,6 +1289,9 @@ export class App implements OnDestroy {
     if (typeof window === 'undefined' || !('speechSynthesis' in window)) return;
     this.refreshVoiceOptions();
     window.speechSynthesis.addEventListener('voiceschanged', this.onVoicesChanged);
+    // Edge/Chromium: lần getVoices() đầu thường thiếu giọng cục bộ; đọc lại sau vài ms.
+    window.setTimeout(() => this.refreshVoiceOptions(), 120);
+    window.setTimeout(() => this.refreshVoiceOptions(), 650);
   }
 
   setSelectedVoice(voiceId: string): void {
@@ -1224,7 +1311,9 @@ export class App implements OnDestroy {
     }));
     this.availableVoices.set(normalized);
 
-    this.vietnameseVoice = this.pickVietnameseVoice();
+    const viList = this.collectVietnameseVoiceCandidates(voices);
+    const viParsed = this.pickVietnameseVoice();
+    this.vietnameseVoice = viParsed ?? this.pickEdgeTtsFallbackVoice();
 
     // Keep existing manual selection if still available.
     if (this.selectedVoiceId() !== 'auto') {
@@ -1236,6 +1325,28 @@ export class App implements OnDestroy {
 
     const selected = this.getSelectedVoice();
     this.selectedVoiceName.set(selected?.name || 'Default');
+
+    console.info('[AKOOL TTS] voices refreshed', {
+      ua: typeof navigator !== 'undefined' ? navigator.userAgent : '',
+      totalVoices: voices.length,
+      vietnameseCandidates: viList.map((v) => ({
+        name: v.name,
+        lang: v.lang,
+        default: v.default,
+        localService: v.localService,
+        voiceURI: v.voiceURI
+      })),
+      vietnameseParserPick: viParsed
+        ? { name: viParsed.name, lang: viParsed.lang, voiceURI: viParsed.voiceURI }
+        : null,
+      usedEdgeFallback: !viParsed,
+      autoVoice: this.vietnameseVoice
+        ? { name: this.vietnameseVoice.name, lang: this.vietnameseVoice.lang, voiceURI: this.vietnameseVoice.voiceURI }
+        : null,
+      effectiveForSpeak: selected
+        ? { name: selected.name, lang: selected.lang, voiceURI: selected.voiceURI, manualId: this.selectedVoiceId() }
+        : null
+    });
   }
 
   private getSelectedVoice(): SpeechSynthesisVoice | null {
@@ -1246,7 +1357,74 @@ export class App implements OnDestroy {
       const manualVoice = voices.find((v) => (v.voiceURI || `${v.name}-${v.lang}`) === manualId);
       if (manualVoice) return manualVoice;
     }
-    return this.vietnameseVoice || this.pickVietnameseVoice();
+    return (
+      this.vietnameseVoice ||
+      this.pickVietnameseVoice() ||
+      this.pickEdgeTtsFallbackVoice()
+    );
+  }
+
+  /** Gom ứng viên tiếng Việt: theo lang VÀ theo tên (Edge hay gán lang sai / thiếu gói vi). */
+  private collectVietnameseVoiceCandidates(voices: SpeechSynthesisVoice[]): SpeechSynthesisVoice[] {
+    const key = (v: SpeechSynthesisVoice) => v.voiceURI || `${v.name}::${v.lang}`;
+    const m = new Map<string, SpeechSynthesisVoice>();
+    for (const v of voices) {
+      const lang = v.lang?.toLowerCase() || '';
+      const n = v.name.toLowerCase();
+      const byLang =
+        lang === 'vi-vn' || lang.startsWith('vi') || /vietnam|viet|việt/i.test(v.name);
+      const byName =
+        /vietnamese|\(vietnam\)|viet nam|việt|tiếng việt|tieng viet|hoai\s*mai|hoaimai|nam\s*minh|namminh|\bvnm\b/i.test(
+          n
+        );
+      if (byLang || byName) {
+        m.set(key(v), v);
+      }
+    }
+    return [...m.values()];
+  }
+
+  /**
+   * Khi API không liệt kê giọng vi (máy chưa cài Speech Vietnamese hoặc Edge không expose).
+   * Chọn giọng nữ/neural en-US (hoặc tương đương) để tránh default nam; vẫn đọc tiếng Việt với accent lạ.
+   */
+  private pickEdgeTtsFallbackVoice(): SpeechSynthesisVoice | null {
+    if (typeof window === 'undefined' || !('speechSynthesis' in window)) return null;
+    const voices = window.speechSynthesis.getVoices();
+    if (!voices.length) return null;
+
+    const femaleLike =
+      /female|\(female\)|\bf\b|aria|jenny|michelle|sonia|libby|sara|zira|emma|luna|natalie|xiaoxiao|xiaoyi|yunxi/i;
+    const maleAvoid =
+      /\bmale\b|\(male\)|\bdavid\b|\bmark\b|\bryan\b|\bjames\b|\bguy\b|nam\s*minh/i;
+
+    const rank = (v: SpeechSynthesisVoice): number => {
+      let s = 0;
+      const n = v.name;
+      if (femaleLike.test(n)) s += 8;
+      if (maleAvoid.test(n)) s -= 10;
+      if (/neural|natural|online/i.test(n)) s += 4;
+      if (/microsoft|google|apple/i.test(n)) s += 1;
+      const l = (v.lang || '').toLowerCase();
+      if (l.startsWith('en-us')) s += 3;
+      else if (l.startsWith('en')) s += 2;
+      return s;
+    };
+
+    const sorted = [...voices].sort((a, b) => rank(b) - rank(a));
+    let best = sorted.find((v) => rank(v) >= 4);
+    if (!best) {
+      best = sorted.find((v) => !maleAvoid.test(v.name));
+    }
+    if (!best) {
+      best = sorted[0];
+    }
+
+    console.info('[AKOOL TTS] pickEdgeTtsFallbackVoice (không có giọng vi trong API)', {
+      picked: best ? { name: best.name, lang: best.lang, score: rank(best) } : null,
+      hint: 'Cài thêm gói Tiếng Việt (Windows: Cài đặt → Thời gian & ngôn ngữ → Ngôn ngữ & vùng → Tiếng nói) để ra Hoai Mai.'
+    });
+    return best || null;
   }
 
   private getPresetTuning(): { rate: number; pitch: number } {
@@ -1266,23 +1444,68 @@ export class App implements OnDestroy {
     if (typeof window === 'undefined' || !('speechSynthesis' in window)) return null;
 
     const voices = window.speechSynthesis.getVoices();
-    if (!voices.length) return null;
+    if (!voices.length) {
+      console.info('[AKOOL TTS] pickVietnameseVoice: getVoices() rỗng (thử đợi sự kiện voiceschanged)');
+      return null;
+    }
 
-    const viVoices = voices.filter((v) => {
-      const lang = v.lang?.toLowerCase() || '';
-      return lang === 'vi-vn' || lang.startsWith('vi') || /vietnam|viet|việt/i.test(v.name);
-    });
-    if (!viVoices.length) return null;
+    const viVoices = this.collectVietnameseVoiceCandidates(voices);
+    if (!viVoices.length) {
+      console.info('[AKOOL TTS] pickVietnameseVoice: không có ứng viên vi (theo lang + tên)', {
+        sampleLangs: [...new Set(voices.map((v) => v.lang))].slice(0, 20).join(', '),
+        allVoiceNamesSample: voices.slice(0, 15).map((v) => v.name)
+      });
+      return null;
+    }
 
-    // Prefer female-like voices to avoid unclear male timbre.
-    const femaleLike = viVoices.find((v) => /female|nu|nữ|girl|woman/i.test(v.name));
-    if (femaleLike) return femaleLike;
+    const nameLower = (v: SpeechSynthesisVoice) => v.name.toLowerCase();
+
+    /** Edge/Chrome trên Windows: tên không có chữ "female", chỉ có mã giọng (vd. Hoai Mai = nữ, Nam Minh = nam). */
+    const isLikelyMaleVi = (v: SpeechSynthesisVoice) => {
+      const n = nameLower(v);
+      return /\bnam\s*minh\b|namminh|\bmale\b|\(male\)/i.test(v.name) || /\b an\s*-\s*vietnamese/i.test(n);
+    };
+
+    const isLikelyFemaleVi = (v: SpeechSynthesisVoice) => {
+      const n = nameLower(v);
+      return (
+        /female|nữ|woman|girl/i.test(v.name) ||
+        /\bhoai\s*mai\b|hoaimai|\blan\b.*vietnamese|huyen|chi\b.*vietnamese/i.test(n)
+      );
+    };
+
+    const femaleLike = viVoices.find((v) => isLikelyFemaleVi(v) && !isLikelyMaleVi(v));
+    if (femaleLike) {
+      console.info('[AKOOL TTS] pickVietnameseVoice: nhánh femaleLike', femaleLike.name);
+      return femaleLike;
+    }
+
+    const notMale = viVoices.filter((v) => !isLikelyMaleVi(v));
+    const neuralAmong = (list: SpeechSynthesisVoice[]) =>
+      list.find((v) => /neural|natural|enhanced|online/i.test(v.name));
+
+    const neuralNotMale = neuralAmong(notMale.length ? notMale : viVoices);
+    if (neuralNotMale) {
+      console.info('[AKOOL TTS] pickVietnameseVoice: nhánh neuralNotMale', neuralNotMale.name);
+      return neuralNotMale;
+    }
 
     const neuralLike = viVoices.find((v) => /neural|natural|enhanced/i.test(v.name));
-    if (neuralLike) return neuralLike;
+    if (neuralLike && !isLikelyMaleVi(neuralLike)) {
+      console.info('[AKOOL TTS] pickVietnameseVoice: nhánh neuralLike (!male)', neuralLike.name);
+      return neuralLike;
+    }
 
     const exactVi = viVoices.find((v) => (v.lang?.toLowerCase() || '') === 'vi-vn');
-    return exactVi || viVoices[0];
+    const pool = notMale.length ? notMale : viVoices;
+    const fallback = exactVi && pool.includes(exactVi) ? exactVi : pool[0];
+    console.info('[AKOOL TTS] pickVietnameseVoice: nhánh fallback (exactVi/pool[0])', fallback?.name, {
+      exactVi: exactVi?.name,
+      poolFirst: pool[0]?.name,
+      taggedMale: viVoices.filter(isLikelyMaleVi).map((v) => v.name),
+      taggedFemale: viVoices.filter(isLikelyFemaleVi).map((v) => v.name)
+    });
+    return fallback;
   }
 
   private stopSpeech(): void {
@@ -1298,4 +1521,83 @@ export class App implements OnDestroy {
     this.utterance = null;
     this.resetReadingHighlight();
   }
+
+  togglePlaybackPause(): void {
+    if (this.playbackPaused()) {
+      this.resumePlayback();
+      return;
+    }
+    this.pausePlayback();
+  }
+
+  private pausePlayback(): void {
+    this.playbackPaused.set(true);
+    this.clearQueueDrainTimer();
+    this.clearQueueAfterReadingPause();
+
+    try {
+      if (this.activeAudio && !this.activeAudio.paused) {
+        this.activeAudio.pause();
+      }
+    } catch {
+      // noop
+    }
+
+    if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
+      try {
+        if (window.speechSynthesis.speaking && !window.speechSynthesis.paused) {
+          window.speechSynthesis.pause();
+        }
+      } catch {
+        // noop
+      }
+    }
+
+    this.isSpeaking.set(false);
+  }
+
+  private resumePlayback(): void {
+    this.playbackPaused.set(false);
+
+    if (this.pendingPlayback) {
+      const p = this.pendingPlayback;
+      this.pendingPlayback = null;
+      this.playAudioOrSpeak(p.audioUrl, p.text);
+      return;
+    }
+
+    try {
+      if (this.activeAudio && this.activeAudio.paused) {
+        void this.activeAudio.play();
+        this.isSpeaking.set(true);
+        return;
+      }
+    } catch {
+      // noop
+    }
+
+    if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
+      try {
+        if (window.speechSynthesis.paused) {
+          window.speechSynthesis.resume();
+          this.isSpeaking.set(true);
+          return;
+        }
+      } catch {
+        // noop
+      }
+    }
+
+    // Nếu pause đúng lúc vừa đọc xong (đang gate hàng chờ) thì khởi động lại cooldown/drain.
+    if (this.awaitingQueueReadingPlayback()) {
+      this.onOracleReadingPlaybackEnded();
+      return;
+    }
+
+    if (this.oracleQueueSize() > 0 && !this.awaitingQueueReadingPlayback()) {
+      this.scheduleQueueDrain(0);
+    }
+  }
+
+  // Mode được quyết định từ route query param `mode`.
 }
